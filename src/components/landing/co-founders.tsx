@@ -24,7 +24,7 @@ export default function CoFounders() {
       image: "/images/founder.png",
       linkedin: FOUNDER_SOCIALS["Astha Singh Sengar"]?.linkedin,
       twitter: FOUNDER_SOCIALS["Astha Singh Sengar"]?.twitter,
-      email: "astha@medconnectsoverseas.com",
+      email: "ashta.sengar@medconnectsoverseas.com",
     },
     {
       name: "Bhavy Gaba",
@@ -34,7 +34,7 @@ export default function CoFounders() {
       image: "/images/founder2.png",
       linkedin: FOUNDER_SOCIALS["Bhavy Gaba"]?.linkedin,
       twitter: FOUNDER_SOCIALS["Bhavy Gaba"]?.twitter,
-      email: "bhavy@medconnectsoverseas.com",
+      email: "bhavygaba@medconnectsoverseas.com",
     },
   ];
 

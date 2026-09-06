@@ -183,11 +183,16 @@
   }
 
   /* Headings and every figure carry Archivo. Tabular numerals keep money,
-     seat counts and dates aligned down a column. */
+     seat counts and dates aligned down a column.
+
+     No colour here on purpose: an element-type rule beats inheritance, so
+     forcing ink made every heading on a dark surface — the navy footer, the
+     hero — render near-black on near-black. Headings take their colour from
+     their surroundings; anything needing a specific one says so with a
+     utility class, which every dashboard and admin heading already does. */
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.018em;
-    color: var(--color-ink);
   }
   .tabular {
     font-family: var(--font-display);

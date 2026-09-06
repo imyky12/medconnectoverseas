@@ -53,8 +53,10 @@ export default function ActivitySlideshow() {
     return () => clearInterval(t);
   }, [slides.length]);
 
+  // Slides animate in from off to one side; without `overflow-hidden` here
+  // they stick out past the viewport and the whole page scrolls sideways.
   return (
-    <div className="relative h-[300px] sm:h-[400px] md:h-[520px] w-full mb-8 md:mb-0">
+    <div className="relative h-[300px] sm:h-[400px] md:h-[520px] w-full mb-8 overflow-hidden md:mb-0">
       <AnimatePresence mode="popLayout">
         {slides.map((slide, index) => {
           const offset = (index - current + slides.length) % slides.length;

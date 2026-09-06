@@ -409,7 +409,7 @@ export default function ContactPage() {
                         );
                       })}
                       <a
-                        href="mailto:astha@medconnectsoverseas.com"
+                        href="mailto:ashta.sengar@medconnectsoverseas.com"
                         className="inline-flex items-center gap-2 text-[#041c44] hover:text-[#041c44]/80 transition-colors"
                       >
                         <Mail className="h-5 w-5" />

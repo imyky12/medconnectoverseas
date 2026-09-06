@@ -118,7 +118,7 @@ These came from earlier feedback and are the highest-priority checks in this pla
 |---|---|---|---|
 | A1 | Open `/` | Page loads, no console errors, logo visible | ✅ (BUG-007 fixed) |
 | A2 | Check every public page: `/events`, `/contact`, `/activities`, `/newsletter` | All load, no broken images, no placeholder text like "Lorem ipsum" | ✅ |
-| A3 | Resize to mobile width (375px) on each page | No horizontal scrolling, nothing overlaps or gets cut off | ⚠️ fix applied, awaiting browser re-measure |
+| A3 | Resize to mobile width (375px) on each page | No horizontal scrolling, nothing overlaps or gets cut off | ✅ (BUG-030 fixed) — 0px overflow on `/`, `/events`, `/contact`, `/activities`, `/newsletter`, sampled at six scroll positions |
 | A4 | Check headings, buttons, spacing against the design system | Navy `#041c44`, accent blue `#1e6ff1`, Inter font, consistent card radius | ✅ |
 | A5 | Click every nav link and footer link | No 404s, no dead links | ✅ (BUG-003/004/005/006 fixed) |
 | A6 | Submit the contact form | **TO CONFIRM** — there is no backend endpoint for contact yet, so check what actually happens | ❌ |
@@ -494,13 +494,13 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 
 ### Summary
 
-**31 bugs. 10 fixed. 21 open.**
+**32 bugs. 11 fixed. 21 open.**
 
 | ID | Type | Severity | One line | Status |
 |---|---|---|---|---|
 | BUG-028 | Functionality | **Critical** | Contact form and newsletter are fake — success shown, nothing sent or stored | Open |
 | BUG-029 | **Security** | High | The same payment reference can be reused across unlimited orders | Open |
-| BUG-030 | Design | Low | Home page scrolls sideways on narrow screens | ✅ Fixed (awaiting browser re-measure) |
+| BUG-030 | Design | Low | Home page scrolls sideways on narrow screens | ✅ Fixed |
 | BUG-027 | **Security** | **Critical** | Suspending a user does nothing — they keep full access and can log back in | Open |
 | BUG-025 | Data / Logic | **Critical** | A slot can be oversold — two people pay, one seat exists, both get QR codes | Open |
 | BUG-026 | Data / Logic | High | A single-use coupon can be redeemed any number of times | Open |
@@ -524,6 +524,7 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | BUG-013 | Usability | Medium | Invalid referral code says "Code applied", then is discarded | Open |
 | BUG-015 | Design | Medium | Savings badge ignores the coupon ("Save ₹400" when ₹800 was saved) | Open |
 | BUG-005 | Content | Low | All four social icons link to `/` | ✅ Fixed |
+| BUG-032 | Design | Medium | Footer headings invisible — near-black on navy | ✅ Fixed |
 | BUG-006 | Content | Low | Co-founder social links are `href="#"` | ✅ Fixed |
 | BUG-008 | Design | Low | Meet Link field shows for offline events | Open |
 | BUG-009 | Content | Low | Reminder chip reads "1 days before" | Open |
@@ -617,6 +618,16 @@ Recorded so nobody re-raises them:
 - **Fix applied:** logo constrained to 64×64 with the brand name set as text beneath it, giving a compact header that still reads as branded. Rebuilt — verified present in all 20 generated templates.
 - **Test:** M-series design check
 
+#### BUG-032 — Footer headings were invisible: near-black text on the navy footer
+- **Type:** Design
+- **Severity:** Medium
+- **What happens:** Every `h3`/`h4` in the footer computed to `rgb(7, 26, 51)` on the `#041c44` footer — effectively unreadable. "MedConnectsOverseas", "Quick Links", "Contact Us" and "Subscribe to our newsletter" were all affected.
+- **Cause:** a regression from the design-token layer added during the dashboard redesign. `src/index.css` set `color: var(--color-ink)` on the bare `h1, h2, h3, h4` selector. An element-type rule beats inheritance, so it silently overrode the white the footer passes down to its children.
+- **Why it is wrong:** it hits every heading on a dark surface, not just the footer, and it does so invisibly — nothing in the footer's own markup looks wrong.
+- **Fix:** dropped the `color` declaration; headings inherit from their context again and keep the Archivo family and letter-spacing. Audited first: every heading in `src/` already carries an explicit colour utility except the ones on dark public sections, which are the ones that wanted to inherit. `--color-ink` `#071a33` and `--color-body` `#16283f` are near-identical, so light-background headings are unchanged.
+- **Verified:** all four footer headings now compute to `rgb(255, 255, 255)`.
+- **Test:** A1, A4
+
 #### BUG-030 — The home page scrolls sideways on narrow screens
 - **Type:** Design
 - **Severity:** Low
@@ -626,7 +637,8 @@ Recorded so nobody re-raises them:
 - **Measured at ~487px** (browser chrome prevented a true 375px viewport in automation) — on a real 375px phone the overflow is likely larger, so worth checking on a device.
 - **Fix direction:** add `overflow-x: hidden` to the section wrapping those decorative blobs, or constrain them at the `sm:` breakpoint.
 - **Test:** A3 ❌
-- **Fixed (needs a browser re-measure):** added `overflow-hidden` to the two `Home.tsx` sections holding the negatively-offset decorative blocks (lines ~195 and ~430). Verified by typecheck and production build; the `scrollWidth` vs `clientWidth` measurement still needs re-running once Chrome DevTools MCP reconnects.
+- **Fixed:** two causes, not one. The decorative negative-offset blocks needed `overflow-hidden` on their `Home.tsx` sections — but the real remaining 7px came from `activity-slideshow.tsx`, whose slides animate in from off-canvas and were never clipped. Re-measured in the browser: `scrollWidth - clientWidth` is **0 at every scroll position** on `/`, `/events`, `/contact`, `/activities` and `/newsletter`.
+- **Note on the viewport:** the browser will not go below **487px** wide in automation, so 375px still has not been measured directly. The offenders are clipped by an ancestor now rather than merely pushed off-screen, so the fix does not depend on viewport width — but a real phone is still worth a glance.
 
 #### BUG-029 — The same payment reference can be reused across unlimited orders
 - **Type:** **Security** / Data

@@ -18,7 +18,9 @@ export interface SocialLinks {
 export const ORG_SOCIALS: SocialLinks = {
   facebook: '',
   twitter: '',
-  instagram: '',
+  // Share links arrive carrying utm/igsi tracking parameters; they are not
+  // part of the address and are stripped so the link stays clean.
+  instagram: 'https://www.instagram.com/medconnectsoverseas',
   linkedin: '',
 };
 
@@ -28,11 +30,11 @@ export const ORG_SOCIALS: SocialLinks = {
  */
 export const FOUNDER_SOCIALS: Record<string, SocialLinks> = {
   'Astha Singh Sengar': {
-    linkedin: '',
+    linkedin: 'https://www.linkedin.com/in/astha-sengar-4704b3320',
     twitter: '',
   },
   'Bhavy Gaba': {
-    linkedin: '',
+    linkedin: 'https://www.linkedin.com/in/bhavy-gaba-713a94327',
     twitter: '',
   },
 };
