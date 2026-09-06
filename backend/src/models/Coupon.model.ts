@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { ApiError } from '../utils/ApiError';
 
 export interface ICoupon extends Document {
   code: string;
@@ -54,7 +55,10 @@ const couponSchema = new Schema<ICoupon>(
 
 couponSchema.pre('save', function (next) {
   if (this.type === 'percentage' && this.value > 100) {
-    return next(new Error('Percentage discount cannot exceed 100%'));
+    // ApiError, not Error: a plain Error from a hook is indistinguishable from
+    // a crash by the time it reaches the error handler, so this good message
+    // came back to the admin as "Internal server error". Same as Event.model.
+    return next(new ApiError(400, 'Percentage discount cannot exceed 100%'));
   }
   next();
 });

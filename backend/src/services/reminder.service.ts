@@ -82,9 +82,19 @@ export const sendEventReminderWhatsapp = async (
 export const scheduleReminders = (
   existingConfigs: IEvent['reminderConfigs']
 ): IEvent['reminderConfigs'] => {
-  // If admin already supplied a custom set, use it unchanged
+  // If admin already supplied a custom set, use it — de-duplicated.
+  //
+  // Two entries at the same offset are the same reminder written twice: the
+  // cron keys `remindersSent` on (slotId, offsetMinutes), so the second copy
+  // can never fire and just sits in the list looking like a second reminder the
+  // admin will not receive. "2 hours before" typed twice, or once as 120
+  // minutes and once as 2 hours, both collapse to one.
   if (existingConfigs && existingConfigs.length > 0) {
-    return existingConfigs;
+    const byOffset = new Map<number, IEvent['reminderConfigs'][number]>();
+    for (const config of existingConfigs) {
+      if (!byOffset.has(config.offsetMinutes)) byOffset.set(config.offsetMinutes, config);
+    }
+    return [...byOffset.values()].sort((a, b) => b.offsetMinutes - a.offsetMinutes);
   }
   // Default: enable all four reminder types
   return REMINDER_OFFSETS.map(({ offsetMinutes, offsetLabel }) => ({

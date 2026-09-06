@@ -36,7 +36,9 @@ function reminderEntryToConfig(r: ReminderEntry): { offsetLabel: string; offsetM
 
 function reminderEntryLabel(r: ReminderEntry): string {
   if (r.type === 'day_of_8am') return 'Day of event at 08:00 AM';
-  return `${r.value} ${r.unit} before`;
+  // The unit is stored plural ("days"), so a value of 1 read as "1 days before".
+  const unit = r.value === 1 ? r.unit.replace(/s$/, '') : r.unit;
+  return `${r.value} ${unit} before`;
 }
 
 let _reminderIdCounter = 0;
@@ -200,7 +202,7 @@ export default function AdminAddEvent() {
         discountedPrice: discountedPrice ? Number(discountedPrice) : undefined,
         mode,
         location: mode === 'offline' ? location.trim() : undefined,
-        meetLink: meetLink.trim() || undefined,
+        meetLink: mode === 'online' ? (meetLink.trim() || undefined) : undefined,
         isPublished,
         slots: slots.map(s => ({ ...s, totalSeats: Number(s.totalSeats) })),
         reminderConfigs,
@@ -297,10 +299,15 @@ export default function AdminAddEvent() {
                 <Input value={location} onChange={e => setLocation(e.target.value)} className="mt-1.5 h-11" placeholder="e.g. AIIMS New Delhi, Auditorium Block C" />
               </div>
             )}
-            <div>
-              <Label>Meet Link <span className="text-faint font-normal">(students see this only once their place is confirmed)</span></Label>
-              <Input type="url" value={meetLink} onChange={e => setMeetLink(e.target.value)} className="mt-1.5 h-11" placeholder="https://meet.google.com/…" />
-            </div>
+            {/* An offline event has no video link. Showing the field anyway
+                invited the admin to fill in something meaningless — and a
+                stored meet link on an offline event would reach students. */}
+            {mode === 'online' && (
+              <div>
+                <Label>Meet Link <span className="text-faint font-normal">(students see this only once their place is confirmed)</span></Label>
+                <Input type="url" value={meetLink} onChange={e => setMeetLink(e.target.value)} className="mt-1.5 h-11" placeholder="https://meet.google.com/…" />
+              </div>
+            )}
           </CardContent>
         </Card>
 

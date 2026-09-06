@@ -151,10 +151,10 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | ID | What to do | Expected | Status |
 |---|---|---|---|
 | C1 | Open `/admin/login`, log in with correct credentials | Reaches admin dashboard | ✅ |
-| C2 | Log in with a wrong password | Generic "Invalid credentials", does not reveal whether the email exists | ✅ |
+| C2 | Log in with a wrong password | Generic "Invalid credentials", does not reveal whether the email exists | ✅ re-confirmed — a wrong password and an unknown email return the byte-identical `401 Invalid credentials` |
 | C3 | Open `/admin/dashboard` directly without logging in | Redirected to admin login | ✅ |
-| C4 | Log in as a normal user, then try `/admin/dashboard` | Blocked — a user token must not open admin pages | ✅ |
-| C5 | Check dashboard numbers against the database | Counts are correct, not hardcoded | ⬜ |
+| C4 | Log in as a normal user, then try `/admin/dashboard` | Blocked — a user token must not open admin pages | ✅ re-confirmed — `403` on dashboard, orders, users, coupons and events, and on a coupon **write**; a garbage token gives `401` |
+| C5 | Check dashboard numbers against the database | Counts are correct, not hardcoded | ✅ (BUG-034 fixed) — nothing hardcoded, but two of the four figures did not mean what their labels claimed |
 
 ### D. Admin creates an event
 
@@ -163,24 +163,24 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | D1 | Open Events → New event | Form loads with all fields | ✅ |
 | D2 | Save with everything empty | Every required field is flagged; nothing is created | ✅ |
 | D3 | Fill valid details, one slot, save | Event created, event code auto-generated | ✅ |
-| D4 | Set price higher than discounted price | Should be rejected or warned; a discount above the price makes no sense | ❌ |
+| D4 | Set price higher than discounted price | Should be rejected or warned; a discount above the price makes no sense | ✅ (BUG-021 fixed) — above **and** equal both rejected, on create and on edit |
 | D5 | Set a negative price or negative seats | Rejected | ✅ |
 | D6 | Set total seats to 0 | Rejected — the model requires at least 1 | ✅ |
 | D7 | Choose "offline" mode but leave venue empty | Rejected — the backend requires a location for offline events | ✅ |
-| D8 | Choose "online" mode | Venue field hidden or optional; no validation error | ⚠️ |
-| D9 | Add a slot with a date in the past | Should be rejected or clearly warned | ❌ |
-| D10 | Add a slot where end time is before start time | Rejected | ❌ |
-| D11 | Add two slots and confirm each has a unique slot ID | No duplicate slot IDs | ❌ |
-| D12 | Remove a slot, leaving zero slots, and save | Rejected — an event needs at least one slot | ❌ |
-| D13 | **Rule 3** — add a custom reminder such as "2 hours before" | Accepted and saved | ⚠️ |
+| D8 | Choose "online" mode | Venue field hidden or optional; no validation error | ✅ (BUG-008 fixed) — Meet Link and Venue now swap cleanly both ways |
+| D9 | Add a slot with a date in the past | Should be rejected or clearly warned | ✅ (BUG-022 fixed) — blocked on create; on edit, existing past slots stay editable but nothing may be moved into the past |
+| D10 | Add a slot where end time is before start time | Rejected | ✅ (BUG-010 fixed) — before, equal, and malformed times all rejected |
+| D11 | Add two slots and confirm each has a unique slot ID | No duplicate slot IDs | ✅ (BUG-023 fixed) — duplicate `slotId` rejected on create and on edit |
+| D12 | Remove a slot, leaving zero slots, and save | Rejected — an event needs at least one slot | ✅ (BUG-024 fixed) — empty array and omitted key both rejected |
+| D13 | **Rule 3** — add a custom reminder such as "2 hours before" | Accepted and saved | ✅ (BUG-009 fixed) — the chip now reads "1 day before", not "1 days before" |
 | D14 | **Rule 3** — remove one of the default reminders | It disappears and stays gone after saving | ✅ |
-| D15 | Add two identical reminders | Should be prevented or de-duplicated | ⬜ |
-| D16 | Save as draft (unpublished) | Does not appear on the user side | ⬜ |
+| D15 | Add two identical reminders | Should be prevented or de-duplicated | ✅ de-duplicated by offset — 4 configs (3 at the same offset, one written a different way) collapsed to 2 |
+| D16 | Save as draft (unpublished) | Does not appear on the user side | ✅ absent from the public list; direct URL by guessed code → `404 Event not found or not published`; every user-facing read filters `isPublished: true` |
 | D17 | Publish the event | Appears on the user events page | ✅ |
 | D18 | Edit the event and change the slot time | Saves; registered users get a "schedule change" email | ✅ |
 | D19 | Edit only the description | Saves; **no** reschedule email is sent | ✅ |
 | D20 | Confirm booked seats are not reset by an edit | Booked seat count survives the update | ✅ |
-| D21 | Upload a very large banner image | Handled cleanly, no crash | ⬜ |
+| D21 | Upload a very large banner image | Handled cleanly, no crash | ⏭️ Not applicable — there is no upload. The banner is a plain URL field and the server never handles the bytes. See the note below. |
 | D22 | Paste a script tag into the title or description | Rendered as text, never executed | ✅ |
 
 ### E. Admin creates a coupon
@@ -188,9 +188,9 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | ID | What to do | Expected | Status |
 |---|---|---|---|
 | E1 | Open Coupons → create, with valid values | Coupon created and listed | ✅ |
-| E2 | Create a coupon whose code already exists | Rejected — codes are unique | ❌ |
-| E3 | Create a percentage coupon with value 150 | Rejected — cannot exceed 100% | ❌ |
-| E4 | Create a coupon with a negative value | Rejected | ❌ |
+| E2 | Create a coupon whose code already exists | Rejected — codes are unique | ✅ (BUG-011 fixed) — `409 That code (E2BASE) is already taken.` |
+| E3 | Create a percentage coupon with value 150 | Rejected — cannot exceed 100% | ✅ (BUG-011 fixed) — `400 Percentage discount cannot exceed 100%`; a value of exactly 100 is still allowed |
+| E4 | Create a coupon with a negative value | Rejected | ✅ (BUG-011 fixed) — `400` naming the `value` field |
 | E5 | Set "valid until" earlier than "valid from" | Rejected | ⏭️ |
 | E6 | Create a coupon that applies to events, tied to this event | Saved with the right scope | ✅ |
 | E7 | Create an already-expired coupon | Allowed to exist, but must not work at checkout | ✅ |
@@ -460,6 +460,23 @@ Every action taken during testing, in order. Each row: what was done and which c
 | Run 12 | National-form mobile `9820115533` + `+91` stored as `+919820115533`; OTP still verified across both calls | B9 ✅ |
 | Run 12 | Welcome emails sent to both accounts; referral code in the mail matches the user record | B11 ✅ |
 | Run 12 | Rebuilt onboarding walked in the browser at 1600px and 390px — 0px overflow, no console errors | B8 ✅ · B9 ✅ |
+| Run 13 | Admin login: wrong password, unknown email, correct credentials — first two identical | C2 ✅ · C1 ✅ |
+| Run 13 | `/admin/dashboard` with no admin token in the browser → redirected to `/admin/login` | C3 ✅ |
+| Run 13 | A real **user** token against 5 admin reads and 1 admin write → `403` every time | C4 ✅ |
+| Run 13 | Seeded 5 coupons covering live / expired / switched-off / exhausted, and compared every dashboard figure with the database | C5 ❌ → BUG-034 |
+| Run 13 | After the fix: Students 2 (DB has 2 onboarded of 3 rows), Coupons live 2 of 5, Earned ₹0 (no orders) | C5 ✅ |
+| Run 13 | Probe coupons deleted afterwards; dashboard back to a clean baseline, no console errors | cleanup |
+| Run 14 | Fixed `errorHandler` first — without it every new model rule would have surfaced as "Internal server error" | BUG-011 |
+| Run 14 | One `validateEventShape` invariant set wired into **both** `pre('validate')` and `pre('findOneAndUpdate')` | BUG-010/021/022/023/024 |
+| Run 14 | Create path: discount ≥ price, past slot, end ≤ start, malformed time, duplicate slotId, zero slots — all `400` with a specific message | D4 ✅ · D9 ✅ · D10 ✅ · D11 ✅ · D12 ✅ |
+| Run 14 | Edit path (previously ran **no** `pre('save')` at all): same six rules enforced, plus offline-without-a-location, which had never been checked on update | D4 ✅ · D9 ✅ · D10 ✅ · D11 ✅ · D12 ✅ |
+| Run 14 | Grandfathering, re-run after a real slot lapsed: description-only edit `200`, unchanged past slot `200`, new past slot `400`, moving a slot further into the past `400` | D9 ✅ |
+| Run 14 | Negative price, 0 seats, negative seats, two missing required fields → `400` naming each field (all were `500`) | D5 ✅ · D6 ✅ |
+| Run 14 | 4 reminder configs, 3 sharing one offset written two ways → stored as 2 | D15 ✅ |
+| Run 14 | Draft event absent from the public list; guessed direct URL → `404`; all user reads filter `isPublished` | D16 ✅ |
+| Run 14 | Meet Link / Venue swap correctly in both directions; reminder chip reads "1 day before" | D8 ✅ · D13 ✅ |
+| Run 14 | Coupon model was throwing the same plain `Error` — fixed, completing BUG-011 | E2 ✅ · E3 ✅ · E4 ✅ |
+| Run 14 | All 6 probe events and all probe coupons deleted; database back to empty, no console errors | cleanup |
 
 **Test accounts used:**
 
@@ -475,11 +492,11 @@ Each test case above carries its own status. Totals:
 
 | | Count |
 |---|---|
-| ✅ Passed | 124 |
-| ❌ Failed | 18 |
-| ⚠️ Works, but has a problem | 5 |
-| ⏭️ Blocked / not applicable | 3 |
-| ⬜ Not yet run | 11 |
+| ✅ Passed | 138 |
+| ❌ Failed | 8 |
+| ⚠️ Works, but has a problem | 2 |
+| ⏭️ Blocked / not applicable | 4 |
+| ⬜ Not yet run | 7 |
 | **Total cases** | **161** |
 
 Every ❌ and ⚠️ maps to an entry in the bug table above.
@@ -489,8 +506,6 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | Case | Why |
 |---|---|
 | A8, A9 | Logged-out access to `/events` register and `/dashboard` |
-| C5 | Admin dashboard figures vs the database |
-| D15, D16, D21 | Duplicate reminders, draft visibility, large banner upload |
 | E10 | Deleting a coupon that has already been used |
 | F8, F10 | Draft event by direct URL; events list at mobile width |
 | I6 | Ticket QR at mobile width |
@@ -499,7 +514,8 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | K6 | A rejected registration never has a QR token (correct behaviour), so there is nothing to scan — covered indirectly, an unknown token returns 404 |
 | J6 | Needs an online event with an open reminder window; the online/offline branch was verified directly in an earlier run |
 | E5 | Not testable — the coupon form has no "valid from" field, only Expiry Date |
-| I6, F10, K9, C5, D15, D16, D21, E10, F8, M2, M10 | Still outstanding — see the per-section tables |
+| I6, F10, K9, E10, F8, M2, M10 | Still outstanding — see the per-section tables |
+| D21 | Not applicable — there is no banner **upload**. The field is a URL, so the server never receives image bytes and there is nothing to overflow. Worth noting separately: nothing constrains the size of the remote image either, so a huge banner would quietly slow the events page for students. |
 | R12 | Needs a referred user's order to be *rejected*; the current referral is already `completed` |
 
 ---
@@ -508,7 +524,7 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 
 ### Summary
 
-**33 bugs. 15 fixed. 18 open.**
+**34 bugs. 24 fixed. 10 open.**
 
 | ID | Type | Severity | One line | Status |
 |---|---|---|---|---|
@@ -518,14 +534,14 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | BUG-027 | **Security** | **Critical** | Suspending a user does nothing — they keep full access and can log back in | ⚠️ Partly fixed — needs re-test |
 | BUG-025 | Data / Logic | **Critical** | A slot can be oversold — two people pay, one seat exists, both get QR codes | Open |
 | BUG-026 | Data / Logic | High | A single-use coupon can be redeemed any number of times | Open |
-| BUG-023 | Data / Logic | High | Two slots can share the same slot ID, corrupting seat counts and reminders | Open |
-| BUG-021 | Data / Logic | Medium | Discount can be set higher than the price | Open |
-| BUG-022 | Data / Logic | Medium | Events can be created with slots in the past | Open |
-| BUG-024 | Data / Logic | Medium | An event can be created with no slots at all | Open |
+| BUG-023 | Data / Logic | High | Two slots can share the same slot ID, corrupting seat counts and reminders | ✅ Fixed |
+| BUG-021 | Data / Logic | Medium | Discount can be set higher than the price | ✅ Fixed |
+| BUG-022 | Data / Logic | Medium | Events can be created with slots in the past | ✅ Fixed |
+| BUG-024 | Data / Logic | Medium | An event can be created with no slots at all | ✅ Fixed |
 | BUG-001 | Functionality | High | Reminder wording crashed for most offsets — no reminders sent | ✅ Fixed |
 | BUG-016 | Functionality | High | One order with a deleted user blanked the whole Admin Orders page | ✅ Fixed |
 | BUG-002 | Functionality | High | Any unknown URL renders a blank white page | ✅ Fixed |
-| BUG-010 | Data / Logic | High | A slot can be saved ending before it starts (already in live data) | Open |
+| BUG-010 | Data / Logic | High | A slot can be saved ending before it starts (already in live data) | ✅ Fixed |
 | BUG-012 | Data / Logic | High | Country code stored twice → `+91+919820115577` | ✅ Fixed |
 | BUG-014 | Functionality | High | Event card shows the wrong slot and understates seats | Open |
 | BUG-017 | Functionality | High | QR scanner fails silently, no manual fallback | Open |
@@ -534,15 +550,16 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | BUG-003 | Content | Medium | Footer "About Us" links to a page that does not exist | ✅ Fixed |
 | BUG-004 | Content | Medium | All five footer activity links are dead | ✅ Fixed |
 | BUG-007 | Design | Medium | "Our Impact in Numbers" heading printed twice | ✅ Fixed |
-| BUG-011 | Functionality | Medium | Validation and duplicate-key errors return "Internal server error" | Open |
+| BUG-011 | Functionality | Medium | Validation and duplicate-key errors return "Internal server error" | ✅ Fixed |
 | BUG-013 | Usability | Medium | Invalid referral code says "Code applied", then is discarded | ✅ Fixed |
 | BUG-015 | Design | Medium | Savings badge ignores the coupon ("Save ₹400" when ₹800 was saved) | Open |
 | BUG-005 | Content | Low | All four social icons link to `/` | ✅ Fixed |
 | BUG-032 | Design | Medium | Footer headings invisible — near-black on navy | ✅ Fixed |
 | BUG-033 | Usability | Medium | A malformed email was accepted and "OTP sent successfully" reported | ✅ Fixed |
+| BUG-034 | Data / Logic | Medium | Two admin dashboard figures did not mean what their labels claimed | ✅ Fixed |
 | BUG-006 | Content | Low | Co-founder social links are `href="#"` | ✅ Fixed |
-| BUG-008 | Design | Low | Meet Link field shows for offline events | Open |
-| BUG-009 | Content | Low | Reminder chip reads "1 days before" | Open |
+| BUG-008 | Design | Low | Meet Link field shows for offline events | ✅ Fixed |
+| BUG-009 | Content | Low | Reminder chip reads "1 days before" | ✅ Fixed |
 | BUG-018 | Content | Low | "You already have **a** approved registration" | Open |
 
 ### Also worth doing (not bugs)
@@ -632,6 +649,20 @@ Recorded so nobody re-raises them:
 - **Why it is wrong:** A fifth of the visible email is empty navy before the reader reaches the message. On a phone it pushes the actual content below the fold.
 - **Fix applied:** logo constrained to 64×64 with the brand name set as text beneath it, giving a compact header that still reads as branded. Rebuilt — verified present in all 20 generated templates.
 - **Test:** M-series design check
+
+#### BUG-034 — Two admin dashboard figures did not mean what their labels claimed
+- **Type:** Data / Logic
+- **Severity:** Medium — quiet and self-consistent, which is what makes it dangerous
+- **Nothing was hardcoded.** All four figures come from `GET /admin/dashboard` and are computed live. The problem is narrower and easier to miss: two of the queries do not measure what the label above them says.
+- **1. "Students · completed sign-up" counted every `User` row.** A `User` is created the moment somebody asks for a login code, *before* onboarding. So everyone who typed an email and walked away was being counted as a student, and the gap only ever grows — it is never reconciled.
+  - **Measured:** the database held 3 user rows, 2 of them onboarded. The dashboard said **3 students**.
+- **2. "Coupons live · currently redeemable" ignored `maxUses`.** The query was `{ isActive: true, validUntil: { $gte: now } }`. A coupon that has been claimed to its limit is not redeemable, but it still counted.
+  - **Measured:** with 5 coupons seeded — live, expired, switched off, and one with no uses left — the old query returned **3**; only 2 were actually redeemable.
+- **3. Not wrong, but worth fixing while there:** revenue was `Order.find({status:'approved'})` pulled into memory and reduced in JavaScript. Correct, but it loads every approved order on every dashboard view — and that is the one collection guaranteed to grow.
+- **Why it matters:** these numbers are what somebody would quote when deciding whether the platform is working. A student count that silently includes abandoned signups reads as growth that did not happen.
+- **Fix:** `totalUsers` counts `{ isOnboardingComplete: true }`; suspended accounts stay in, since they are still students and the figure should not lurch when an admin suspends someone. `activeCoupons` gains `$expr: { $lt: ['$usedCount', '$maxUses'] }`. Revenue is summed with a `$group` aggregation instead of in memory.
+- **Verified:** with 3 user rows (2 onboarded) and 5 coupons (2 redeemable), the dashboard now reads **Students 2 · Coupons live 2 · Earned ₹0**, each matching a direct database query. Probe coupons removed afterwards.
+- **Test:** C5 ⬜ → ✅
 
 #### BUG-033 — A malformed email address was accepted and reported as sent
 - **Type:** Usability / Robustness
@@ -755,6 +786,11 @@ Recorded so nobody re-raises them:
   ```
   Then refuse the approval and tell the admin to reject and refund instead. Also worth showing the admin "2 pending for 1 remaining seat" in the orders queue so the conflict is visible before they approve.
 - **Test:** H12 ❌
+
+- **Fixed, together.** BUG-010, 021, 022, 023 and 024 were five symptoms of one absence: the `Event` model asserted nothing about its own shape. They are now a single `validateEventShape()` in `backend/src/models/Event.model.ts`, wired into **two** hooks:
+  - `pre('validate')` — covers `create()` and `save()`
+  - `pre('findOneAndUpdate')` — covers the admin edit endpoint, which uses `findByIdAndUpdate`. `runValidators: true` applies field rules but **never fires `pre('save')`**, so before this every one of these states could be written by editing an event even once creation refused it. That also means the offline-needs-a-location rule, which looked guarded, had never run on an edit at all. The hook loads the current document and merges the patch, so a partial edit is judged on the resulting event rather than on the fragment sent.
+  - **Past slots are grandfathered on edit.** A slot that already exists and has not moved is exempt, or every finished event would become uneditable and a typo fix would be blocked by a date nobody touched. Adding a new past slot, or moving an existing one further back, is still refused.
 
 #### BUG-021 — An event can be saved with a discount higher than its price
 - **Type:** Data / Logic
@@ -916,6 +952,11 @@ Recorded so nobody re-raises them:
   - `err.name === 'CastError'` → 400, "invalid id"
 - **Affects the whole API**, not just coupons — every model validation in the app currently degrades to a 500.
 - **Tests:** E2 ❌ · E3 ❌ · E4 ❌
+- **Fixed, in two parts.** The handler was only half of it:
+  1. `errorHandler.ts` gained the three branches: `ValidationError` → `400` listing every failing field by name, `E11000` → `409` naming the duplicated field, `CastError` → `400`. Genuinely unexpected errors still return a bare 500 with no detail leaked.
+  2. **The models had to stop throwing plain `Error`s.** A hook that calls `next(new Error(...))` produces something the handler cannot distinguish from a crash, so the message is discarded no matter how good the handler is. `Coupon.model.ts` did exactly this for the percentage rule — which is why E3 alone still returned 500 after part 1 was in place. Both `Coupon` and `Event` now raise `ApiError(400, …)`.
+- **Verified:** duplicate code → `409 That code (E2BASE) is already taken.` · percentage 150 → `400 Percentage discount cannot exceed 100%` (100 exactly is still allowed) · negative value → `400` naming `value` · two missing required fields → `400` listing both. Every one of these was a `500`.
+- **This was a prerequisite for the whole D-series fix** — new model rules would have been invisible behind "Internal server error" without it.
 
 #### BUG-010 — A slot can be saved with the end time before the start time
 - **Type:** Data / Logic
