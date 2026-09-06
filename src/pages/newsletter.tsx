@@ -1,8 +1,8 @@
 import { Calendar, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
-import NewsletterSignup from "@/components/newsletter-signup";
+import Navbar from "@/components/landing/navbar";
+import Footer from "@/components/landing/footer";
+import NewsletterSignup from "@/components/landing/newsletter-signup";
 
 export default function NewsletterPage() {
   const newsletters = [

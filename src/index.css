@@ -117,4 +117,157 @@
   body {
     @apply bg-background text-foreground;
   }
+  button,
+  a,
+  select,
+  [role="button"],
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MedConnects — "Rotation Board" design layer
+   ───────────────────────────────────────────────────────────────────────────
+   Medical training runs on rotas and ward boards: time and status are the
+   organising facts. Two devices carry the whole product —
+
+     1. the status spine  — a rule on the left edge of anything actionable,
+                            coloured by state, so a screen reads peripherally
+     2. time as the axis  — dated agenda rows grouped by month, not a card grid
+
+   The spine appears ONLY on objects with a state the user acts on.
+   Static content gets none, or it becomes decoration.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Ground + structure */
+  --color-ink: #071a33;
+  --color-ink-soft: #1c3557;
+  --color-paper: #f3f5f8;
+  --color-surface: #ffffff;
+  --color-rule: #d8e0ea;
+  --color-rule-soft: #e9eef4;
+
+  /* Text */
+  --color-body: #16283f;
+  --color-muted: #5b6b80;
+  --color-faint: #8a99ab;
+
+  /* The single primary action per view — used sparingly */
+  --color-signal: #1e6ff1;
+  --color-signal-deep: #1558c4;
+  --color-signal-wash: #e8f0fe;
+
+  /* States. Deliberately deeper and less saturated than the stock
+     green-600 / amber-500 / red-500 kit. */
+  --color-confirmed: #0e7c66;
+  --color-confirmed-wash: #e3f2ee;
+  --color-holding: #a8642a;
+  --color-holding-wash: #fbf0e4;
+  --color-declined: #a4322a;
+  --color-declined-wash: #fbeae8;
+
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-paper);
+    color: var(--color-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Headings and every figure carry Archivo. Tabular numerals keep money,
+     seat counts and dates aligned down a column. */
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.018em;
+    color: var(--color-ink);
+  }
+  .tabular {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+@layer components {
+  /* ── The status spine ────────────────────────────────────────────────────
+     A left rule that encodes state structurally. Put it on rows and panels
+     the user can act on. */
+  .spine {
+    position: relative;
+    padding-left: 1.25rem;
+  }
+  .spine::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--color-rule);
+  }
+  .spine-signal::before    { background: var(--color-signal); }
+  .spine-confirmed::before { background: var(--color-confirmed); }
+  .spine-holding::before   { background: var(--color-holding); }
+  .spine-declined::before  { background: var(--color-declined); }
+  .spine-past::before      { background: var(--color-rule); }
+
+  /* ── State text ─────────────────────────────────────────────────────────
+     A word in the state colour reads faster than a pill and adds no chrome. */
+  .state {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: -0.01em;
+  }
+  .state-confirmed { color: var(--color-confirmed); }
+  .state-holding   { color: var(--color-holding); }
+  .state-declined  { color: var(--color-declined); }
+  .state-muted     { color: var(--color-faint); }
+
+  /* ── Agenda row ─────────────────────────────────────────────────────────
+     The workhorse: a dated row in a time-ordered list. */
+  .agenda-row {
+    display: grid;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem 1rem 0;
+    border-bottom: 1px solid var(--color-rule-soft);
+    transition: background-color 120ms ease;
+  }
+  .agenda-row:hover { background-color: #fafcfe; }
+  .agenda-row:last-child { border-bottom: 0; }
+
+  /* ── Panel ──────────────────────────────────────────────────────────────
+     Used where an object genuinely is self-contained. Not the default
+     wrapper for everything. */
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: 10px;
+  }
+
+  /* ── Focus ──────────────────────────────────────────────────────────────*/
+  .focusable:focus-visible,
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

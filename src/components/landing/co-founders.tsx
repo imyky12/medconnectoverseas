@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Linkedin, Twitter, Mail } from "lucide-react";
+import { FOUNDER_SOCIALS } from "../../constants/social";
 
 interface CoFounder {
   name: string;
@@ -21,8 +22,8 @@ export default function CoFounders() {
       description:
         "Astha founded MedConnectsOverseas with a vision to build a supportive community for medical students worldwide.",
       image: "/images/founder.png",
-      linkedin: "#",
-      twitter: "#",
+      linkedin: FOUNDER_SOCIALS["Astha Singh Sengar"]?.linkedin,
+      twitter: FOUNDER_SOCIALS["Astha Singh Sengar"]?.twitter,
       email: "astha@medconnectsoverseas.com",
     },
     {
@@ -31,8 +32,8 @@ export default function CoFounders() {
       description:
         "Bhavy leads curriculum and mentorship initiatives, ensuring the highest academic standards and student success.",
       image: "/images/founder2.png",
-      linkedin: "#",
-      twitter: "#",
+      linkedin: FOUNDER_SOCIALS["Bhavy Gaba"]?.linkedin,
+      twitter: FOUNDER_SOCIALS["Bhavy Gaba"]?.twitter,
       email: "bhavy@medconnectsoverseas.com",
     },
   ];
@@ -79,6 +80,8 @@ export default function CoFounders() {
                   {founder.linkedin && (
                     <a
                       href={founder.linkedin}
+                      target="_blank"
+                      rel="noreferrer noopener"
                       className="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-2.5 sm:p-3 rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-blue-900 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-110"
                       aria-label={`${founder.name} LinkedIn`}
                     >
@@ -88,6 +91,8 @@ export default function CoFounders() {
                   {founder.twitter && (
                     <a
                       href={founder.twitter}
+                      target="_blank"
+                      rel="noreferrer noopener"
                       className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-2.5 sm:p-3 rounded-lg sm:rounded-xl hover:from-cyan-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-110"
                       aria-label={`${founder.name} Twitter`}
                     >

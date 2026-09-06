@@ -1,7 +1,7 @@
 import { ArrowRight, Globe, Heart, BookOpen, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
+import Navbar from "@/components/landing/navbar";
+import Footer from "@/components/landing/footer";
 import { Link } from "react-router-dom";
 
 export default function ActivitiesPage() {

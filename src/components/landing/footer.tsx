@@ -1,47 +1,45 @@
 import { Facebook, Twitter, Instagram, Linkedin, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ORG_SOCIALS, activeLinks } from "../../constants/social";
+
+const SOCIAL_ICONS = {
+  facebook: { Icon: Facebook, label: "Facebook" },
+  twitter: { Icon: Twitter, label: "Twitter" },
+  instagram: { Icon: Instagram, label: "Instagram" },
+  linkedin: { Icon: Linkedin, label: "LinkedIn" },
+} as const;
 
 export default function Footer() {
   return (
     <footer className="bg-[#041c44] text-white">
       <div className="container mx-auto px-4 py-12 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3">
           <div className="space-y-4">
             <h3 className="text-xl font-bold">MedConnectsOverseas</h3>
             <p className="text-blue-200">
               A student led, student oriented community connecting medical
               students worldwide.
             </p>
-            <div className="flex space-x-4">
-              <Link
-                to="#"
-                className="text-white hover:text-blue-300 transition-colors"
-              >
-                <Facebook className="h-5 w-5" />
-                <span className="sr-only">Facebook</span>
-              </Link>
-              <Link
-                to="#"
-                className="text-white hover:text-blue-300 transition-colors"
-              >
-                <Twitter className="h-5 w-5" />
-                <span className="sr-only">Twitter</span>
-              </Link>
-              <Link
-                to="#"
-                className="text-white hover:text-blue-300 transition-colors"
-              >
-                <Instagram className="h-5 w-5" />
-                <span className="sr-only">Instagram</span>
-              </Link>
-              <Link
-                to="#"
-                className="text-white hover:text-blue-300 transition-colors"
-              >
-                <Linkedin className="h-5 w-5" />
-                <span className="sr-only">LinkedIn</span>
-              </Link>
-            </div>
+            {/* Only profiles that actually exist — see src/constants/social.ts */}
+            {activeLinks(ORG_SOCIALS).length > 0 && (
+              <div className="flex space-x-4">
+                {activeLinks(ORG_SOCIALS).map(([key, url]) => {
+                  const { Icon, label } = SOCIAL_ICONS[key];
+                  return (
+                    <a
+                      key={key}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="text-white hover:text-blue-300 transition-colors"
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="sr-only">{label}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
@@ -53,14 +51,6 @@ export default function Footer() {
                   className="text-blue-200 hover:text-white transition-colors"
                 >
                   Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/about"
-                  className="text-blue-200 hover:text-white transition-colors"
-                >
-                  About Us
                 </Link>
               </li>
               <li>
@@ -85,52 +75,6 @@ export default function Footer() {
                   className="text-blue-200 hover:text-white transition-colors"
                 >
                   Contact
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Activities</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  to="/activities/exploring-georgia"
-                  className="text-blue-200 hover:text-white transition-colors"
-                >
-                  Exploring Georgia
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/activities/treasure-hunt"
-                  className="text-blue-200 hover:text-white transition-colors"
-                >
-                  Treasure Hunt
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/activities/trekking"
-                  className="text-blue-200 hover:text-white transition-colors"
-                >
-                  Trekking Adventures
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/activities/med-talks"
-                  className="text-blue-200 hover:text-white transition-colors"
-                >
-                  Med Talks
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/activities/webinars"
-                  className="text-blue-200 hover:text-white transition-colors"
-                >
-                  Free Webinars
                 </Link>
               </li>
             </ul>

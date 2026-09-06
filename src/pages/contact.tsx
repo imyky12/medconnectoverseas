@@ -3,6 +3,7 @@
 import type React from "react";
 
 import { useState } from "react";
+import { ORG_SOCIALS, FOUNDER_SOCIALS, activeLinks } from "../constants/social";
 import { motion } from "framer-motion";
 import {
   Mail,
@@ -17,8 +18,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
+import Navbar from "@/components/landing/navbar";
+import Footer from "@/components/landing/footer";
+
+const SOCIAL_ICONS = {
+  facebook: { Icon: Facebook, label: "Facebook" },
+  twitter: { Icon: Twitter, label: "Twitter" },
+  instagram: { Icon: Instagram, label: "Instagram" },
+  linkedin: { Icon: Linkedin, label: "LinkedIn" },
+} as const;
 
 export default function ContactPage() {
   const [formState, setFormState] = useState({
@@ -196,36 +204,34 @@ export default function ContactPage() {
                   <h3 className="font-semibold text-[#041c44] mb-4">
                     Connect With Us
                   </h3>
-                  <div className="flex space-x-4">
+                  {/* Only profiles that actually exist — src/constants/social.ts */}
+                  {activeLinks(ORG_SOCIALS).length > 0 ? (
+                    <div className="flex space-x-4">
+                      {activeLinks(ORG_SOCIALS).map(([key, url]) => {
+                        const { Icon, label } = SOCIAL_ICONS[key];
+                        return (
+                          <a
+                            key={key}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="bg-[#041c44] p-2 rounded-full text-white hover:bg-[#041c44]/80 transition-colors"
+                          >
+                            <Icon className="h-5 w-5" />
+                            <span className="sr-only">{label}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  ) : (
                     <a
-                      href="#"
-                      className="bg-[#041c44] p-2 rounded-full text-white hover:bg-[#041c44]/80 transition-colors"
+                      href="mailto:info@medconnectsoverseas.com"
+                      className="inline-flex items-center gap-2 text-[#041c44] hover:underline"
                     >
-                      <Facebook className="h-5 w-5" />
-                      <span className="sr-only">Facebook</span>
+                      <Mail className="h-5 w-5" />
+                      info@medconnectsoverseas.com
                     </a>
-                    <a
-                      href="#"
-                      className="bg-[#041c44] p-2 rounded-full text-white hover:bg-[#041c44]/80 transition-colors"
-                    >
-                      <Twitter className="h-5 w-5" />
-                      <span className="sr-only">Twitter</span>
-                    </a>
-                    <a
-                      href="#"
-                      className="bg-[#041c44] p-2 rounded-full text-white hover:bg-[#041c44]/80 transition-colors"
-                    >
-                      <Instagram className="h-5 w-5" />
-                      <span className="sr-only">Instagram</span>
-                    </a>
-                    <a
-                      href="#"
-                      className="bg-[#041c44] p-2 rounded-full text-white hover:bg-[#041c44]/80 transition-colors"
-                    >
-                      <Linkedin className="h-5 w-5" />
-                      <span className="sr-only">LinkedIn</span>
-                    </a>
-                  </div>
+                  )}
                 </div>
               </motion.div>
 
@@ -384,27 +390,30 @@ export default function ContactPage() {
                       resources, and support systems for medical students at all
                       stages of their journey.
                     </p>
-                    <div className="flex space-x-4">
+                    {/* Her profiles appear here as soon as they are filled in
+                        — src/constants/social.ts */}
+                    <div className="flex items-center space-x-4">
+                      {activeLinks(FOUNDER_SOCIALS["Astha Singh Sengar"] ?? {}).map(([key, url]) => {
+                        const { Icon, label } = SOCIAL_ICONS[key];
+                        return (
+                          <a
+                            key={key}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="text-[#041c44] hover:text-[#041c44]/80 transition-colors"
+                          >
+                            <Icon className="h-5 w-5" />
+                            <span className="sr-only">{label}</span>
+                          </a>
+                        );
+                      })}
                       <a
-                        href="#"
-                        className="text-[#041c44] hover:text-[#041c44]/80 transition-colors"
-                      >
-                        <Linkedin className="h-5 w-5" />
-                        <span className="sr-only">LinkedIn</span>
-                      </a>
-                      <a
-                        href="#"
-                        className="text-[#041c44] hover:text-[#041c44]/80 transition-colors"
-                      >
-                        <Twitter className="h-5 w-5" />
-                        <span className="sr-only">Twitter</span>
-                      </a>
-                      <a
-                        href="#"
-                        className="text-[#041c44] hover:text-[#041c44]/80 transition-colors"
+                        href="mailto:astha@medconnectsoverseas.com"
+                        className="inline-flex items-center gap-2 text-[#041c44] hover:text-[#041c44]/80 transition-colors"
                       >
                         <Mail className="h-5 w-5" />
-                        <span className="sr-only">Email</span>
+                        <span className="sr-only">Email Astha</span>
                       </a>
                     </div>
                   </div>

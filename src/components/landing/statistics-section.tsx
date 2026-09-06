@@ -69,11 +69,10 @@ export default function StatisticsSection() {
   ];
 
   return (
-    <div ref={ref} className="w-full max-w-4xl mx-auto px-4 py-12">
-      <h2 className="text-4xl md:text-5xl font-bold text-white mb-12 text-center">
-        Our Impact in Numbers
-      </h2>
-
+    // The heading belongs to the section that wraps this component in
+    // Home.tsx, styled to match every other section heading on the page.
+    // Repeating it here printed it twice.
+    <div ref={ref} className="w-full max-w-4xl mx-auto px-4 pb-12">
       {/* Grid Layout - 2x3 */}
       <div className="grid grid-cols-2 gap-0">
         {stats.map((stat, index) => (

@@ -11,14 +11,14 @@ import {
   Globe,
   Award,
 } from "lucide-react";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
-import NewsletterSignup from "@/components/newsletter-signup";
-import TestimonialScroll from "@/components/testimonial-scroll";
-import FAQSection from "@/components/faq-section";
-import CoFounders from "@/components/co-founders";
-import ActivitySlideshow from "@/components/activity-slideshow";
-import StatisticsSection from "@/components/statistics-section";
+import Navbar from "@/components/landing/navbar";
+import Footer from "@/components/landing/footer";
+import NewsletterSignup from "@/components/landing/newsletter-signup";
+import TestimonialScroll from "@/components/landing/testimonial-scroll";
+import FAQSection from "@/components/landing/faq-section";
+import CoFounders from "@/components/landing/co-founders";
+import ActivitySlideshow from "@/components/landing/activity-slideshow";
+import StatisticsSection from "@/components/landing/statistics-section";
 import { useNavigate } from "react-router-dom";
 
 function Home() {
@@ -192,7 +192,7 @@ function Home() {
       </section>
 
       {/* Mission & Vision with Image on Right and animated background at top */}
-      <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-[10%] bg-gradient-to-br from-blue-50 via-white to-blue-100">
+      <section className="overflow-hidden py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-[10%] bg-gradient-to-br from-blue-50 via-white to-blue-100">
         <div className="container px-4 md:px-6">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-900 bg-clip-text text-transparent mb-4">
@@ -427,7 +427,7 @@ function Home() {
       </section>
 
       {/* Newsletter */}
-      <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-[10%] bg-gradient-to-br from-white via-blue-50 to-cyan-50">
+      <section className="overflow-hidden py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-[10%] bg-gradient-to-br from-white via-blue-50 to-cyan-50">
         <div className="container px-4 md:px-6">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-900 bg-clip-text text-transparent mb-4">
