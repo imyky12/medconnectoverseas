@@ -227,7 +227,9 @@ export async function notifyAdminNewOrder(
         item_title: itemTitle,
         user_name: fullName(user) || '(name not set)',
         user_email: user.email,
-        user_mobile: user.mobile ? `${user.countryCode ?? ''}${user.mobile}` : '(not provided)',
+        // `mobile` is stored E.164 and already carries its dial code; prefixing
+        // `countryCode` here produced "+91+919820115577" in the admin's inbox.
+        user_mobile: user.mobile || '(not provided)',
         order_id: shortId(order._id),
         final_price: formatMoney(order.finalPrice),
         transaction_id: order.transactionId,

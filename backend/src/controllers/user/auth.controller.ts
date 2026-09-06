@@ -10,16 +10,32 @@ import { ApiError } from '../../utils/ApiError';
 import { asyncHandler } from '../../utils/asyncHandler';
 
 /**
+ * Deliberately permissive: one @, no spaces, a dot in the domain. Anything
+ * stricter starts rejecting addresses that are perfectly deliverable.
+ */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+
+/**
  * Handles requesting an OTP for login/signup via email.
  */
 export const requestOtp = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
-  if (!email) {
+  if (!email || typeof email !== 'string') {
     throw new ApiError(400, 'Email is required');
   }
 
   const lowercaseEmail = email.toLowerCase().trim();
+
+  // Only the shape is checked here, never whether the address exists. Nothing
+  // checked it before: a malformed address was queued like any other and the
+  // caller was told "OTP sent successfully", so someone who mistyped their
+  // address sat waiting for a mail that could never arrive, and the outbox
+  // carried the failure instead. Rejecting it here says what is actually wrong.
+  if (!EMAIL_PATTERN.test(lowercaseEmail)) {
+    throw new ApiError(400, 'That does not look like a valid email address.');
+  }
+
   const otpValue = await createOtp(lowercaseEmail, 'email');
 
   await sendOtpEmail(lowercaseEmail, otpValue);
@@ -56,6 +72,14 @@ export const verifyEmailOtp = asyncHandler(async (req: Request, res: Response) =
   } else if (!user.isEmailVerified) {
     user.isEmailVerified = true;
     await user.save();
+  }
+
+  // A correct OTP proves who someone is, not that they are still allowed in.
+  // The `auth` middleware already turns suspended accounts away on every
+  // request, but without this a suspended user could simply log in again and
+  // collect a brand-new token — so the check has to live at the door too.
+  if (!user.isActive) {
+    throw new ApiError(403, 'This account has been suspended. Please contact support.');
   }
 
   // Device Info & IP Logic (Minimal fallback if undefined)

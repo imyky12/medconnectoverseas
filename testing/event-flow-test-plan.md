@@ -135,16 +135,16 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | B2 | Check the OTP email in the inbox | Correct subject with the code, navy header, logo loads, no `{{placeholder}}` left behind | ✅ |
 | B3 | Enter a wrong OTP | Clear error message, not logged in | ✅ |
 | B4 | Enter the correct OTP | Logged in, sent to onboarding | ✅ |
-| B5 | Try to reuse the same OTP a second time | Rejected — OTPs are single use | ⬜ |
-| B6 | Request an OTP 6+ times quickly | Rate limiting kicks in, no server error | ⬜ |
-| B7 | Enter an invalid email format | Blocked with a clear message | ⬜ |
+| B5 | Try to reuse the same OTP a second time | Rejected — OTPs are single use | ✅ second use of the same code → `400 Invalid or expired OTP` |
+| B6 | Request an OTP 6+ times quickly | Rate limiting kicks in, no server error | ✅ 6th request in the window → `429` "Too many OTP requests. Please try again after 10 minutes." |
+| B7 | Enter an invalid email format | Blocked with a clear message | ✅ (BUG-033 fixed) — 5 malformed addresses all `400` |
 | B8 | On onboarding, submit with empty fields | Each required field shows an error | ✅ |
-| B9 | Request the mobile OTP and enter a wrong code | Clear error, onboarding not completed | ⚠️ |
+| B9 | Request the mobile OTP and enter a wrong code | Clear error, onboarding not completed | ✅ (BUG-012 fixed) — clear error in the UI, boxes turn red, onboarding not completed |
 | B10 | Complete onboarding with valid details | Lands on dashboard; referral code shown | ✅ |
 | B11 | Check the welcome email | Arrives, referral code in the email matches the one on screen | ✅ |
-| B12 | Try to open `/onboarding` again after completing it | Blocked or redirected — cannot onboard twice | ⬜ |
-| B13 | Enter a referral code that does not exist | Handled gracefully, signup still completes | ❌ |
-| B14 | Enter your own referral code | Rejected — cannot refer yourself | ⏭️ |
+| B12 | Try to open `/onboarding` again after completing it | Blocked or redirected — cannot onboard twice | ✅ API `400 Onboarding is already complete`; the page also redirects to `/dashboard` |
+| B13 | Enter a referral code that does not exist | Handled gracefully, signup still completes | ✅ (BUG-013 fixed) — checked live as you type; signup still completes and the response reports `applied: false` with a reason |
+| B14 | Enter your own referral code | Rejected — cannot refer yourself | ✅ now reachable — the validate endpoint answers "That is your own code — you cannot refer yourself." |
 
 ### C. Admin login
 
@@ -312,11 +312,11 @@ The referral chain is: a new user signs up with someone's code → the referrer 
 | R2 | Sign up a new user and enter a **valid** referral code | Accepted; `referredBy` set; `Referral` record created with status `pending` | ✅ |
 | R3 | Check the referrer receives the "someone joined using your code" email | Arrives, names the new member, correct total count | ✅ |
 | R4 | Confirm the reward is **not** granted yet at signup | No coupon; `rewardGiven` false | ✅ |
-| **R5** | **Enter an invalid referral code at signup** | **Must be told immediately and clearly that the code is not valid, before the user can continue** | ❌ **BUG-013** |
-| R5a | Type an invalid code and watch for feedback *as you type / on blur* | Should validate against the server and show "We could not find that code" | ❌ — no server check happens at all |
-| R5b | Complete signup with an invalid code and inspect the user record | Currently: UI says "Code applied", user is created with **no** `referredBy` and **no** referral record. The user believes a friend was credited and that they have a discount. Nothing ever tells them otherwise. | ❌ |
-| R6 | Enter **your own** referral code | Rejected — cannot refer yourself | ⏭️ Not reachable at signup: a new user has no code until onboarding finishes, so they cannot type their own. Backend guard exists (`referrer._id === userId` → ignored). Worth re-testing if codes ever become user-chosen. |
-| R7 | Enter a valid code with padding/different case | Trimmed and matched, never silently ignored | ⬜ |
+| **R5** | **Enter an invalid referral code at signup** | **Must be told immediately and clearly that the code is not valid, before the user can continue** | ✅ **BUG-013 fixed** |
+| R5a | Type an invalid code and watch for feedback *as you type / on blur* | Should validate against the server and show "We could not find that code" | ✅ debounced check against `GET /referrals/validate/:code`; invalid shows amber "We could not find that code. You can carry on without one.", valid shows green "Referred by Yash K. — we will credit them." |
+| R5b | Complete signup with an invalid code and inspect the user record | Signup completes, no `referredBy`, no referral record — and the response now carries `referral: { applied: false, reason: … }` so it is never dropped in silence. Verified against `ZZZZ9999`. | ✅ |
+| R6 | Enter **your own** referral code | Rejected — cannot refer yourself | ✅ now reachable through the validate endpoint, which names the reason. Previously not reachable at signup: a new user has no code until onboarding finishes, so they cannot type their own. Backend guard exists (`referrer._id === userId` → ignored). Worth re-testing if codes ever become user-chosen. |
+| R7 | Enter a valid code with padding/different case | Trimmed and matched, never silently ignored | ✅ `%20%205599%20` and lowercase both resolve to `Yash K.` |
 | R8 | Referred user places an order; admin **approves** it | `status` → `completed`, `rewardGiven` → true, exactly one coupon minted | ✅ |
 | R9 | Check the referrer's "reward unlocked" email | Code in the email exists as a real coupon with the right value | ✅ |
 | R10 | Check the reward coupon is locked to the referrer | `allowedEmails` only the referrer; `maxUses` 1; `usesPerUser` 1 | ✅ |
@@ -448,11 +448,26 @@ Every action taken during testing, in order. Each row: what was done and which c
 | Run 11 | Certificate reads "…certify that Yash Kumar successfully attended PLAB 2 OSCE Masterclass held on 3 September 2026" | L1 ✅ · L2 ✅ |
 | Run 11 | `notesTitle` displays to users; download controls present; "Your slot ✓" marked correctly | L3 ✅ · L7 ✅ |
 | Run 11 | Profile shows referral code `5577` and referral count matching the database | R1 ✅ · R15 ✅ |
+| Run 12 | Five malformed email addresses to `request-otp` — all rejected with the same clear message | B7 ✅ (BUG-033) |
+| Run 12 | Sixth OTP request inside the window returned `429` with a readable message, no server error | B6 ✅ |
+| Run 12 | Wrong OTP, correct OTP, then the **same** OTP again on `yash.kumar@anchors.pro` | B3 ✅ · B4 ✅ · B5 ✅ |
+| Run 12 | Mobile OTP sent — SMS stub printed `+919820115599`, not `+91+919820115599` | B9 ✅ (BUG-012) |
+| Run 12 | Onboarded with bogus code `ZZZZ9999` — completes, `referral.applied: false` with a reason, no `referredBy` | B13 ✅ · R5b ✅ |
+| Run 12 | Second onboarding attempt on the same account refused | B12 ✅ |
+| Run 12 | `GET /referrals/validate/:code` — real code names "Yash K.", bogus/own code each give their own reason | R5a ✅ · B14 ✅ · R6 ✅ |
+| Run 12 | Padded and lowercase codes resolve identically to the clean one | R7 ✅ |
+| Run 12 | Second account onboarded with the **valid** code — `referredBy` set, `Referral` row `pending`, referrer emailed | R2 ✅ · R3 ✅ · R4 ✅ |
+| Run 12 | National-form mobile `9820115533` + `+91` stored as `+919820115533`; OTP still verified across both calls | B9 ✅ |
+| Run 12 | Welcome emails sent to both accounts; referral code in the mail matches the user record | B11 ✅ |
+| Run 12 | Rebuilt onboarding walked in the browser at 1600px and 390px — 0px overflow, no console errors | B8 ✅ · B9 ✅ |
 
 **Test accounts used:**
 
-- `yash@medconnectsoverseas.com` — Yash Kumar, India, referral code `5577`
-- `yash+ref@medconnectsoverseas.com` — Priya Sharma, referred by `5577` (plus-addressing delivers to the same inbox)
+- `yash@medconnectsoverseas.com` — Yash Kumar, India, referral code `5577` *(deleted from the database before Run 12)*
+- `yash+ref@medconnectsoverseas.com` — Priya Sharma, referred by `5577` *(deleted before Run 12)*
+- `yash.kumar@anchors.pro` — Yash Kumar, India, referral code `5599`, mobile `+919820115599` — the Run 12 referrer
+- `yash.kumar+ref@anchors.pro` — Priya Sharma, referred by `5599`, referral code `5533`
+- `yash.kumar+ui@anchors.pro` — left **mid-onboarding** on purpose, so the rebuilt flow can be reopened in a browser without creating a new account
 
 ### Current status
 
@@ -460,11 +475,11 @@ Each test case above carries its own status. Totals:
 
 | | Count |
 |---|---|
-| ✅ Passed | 111 |
-| ❌ Failed | 21 |
-| ⚠️ Works, but has a problem | 6 |
-| ⏭️ Blocked / not applicable | 5 |
-| ⬜ Not yet run | 18 |
+| ✅ Passed | 124 |
+| ❌ Failed | 18 |
+| ⚠️ Works, but has a problem | 5 |
+| ⏭️ Blocked / not applicable | 3 |
+| ⬜ Not yet run | 11 |
 | **Total cases** | **161** |
 
 Every ❌ and ⚠️ maps to an entry in the bug table above.
@@ -474,8 +489,6 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | Case | Why |
 |---|---|
 | A8, A9 | Logged-out access to `/events` register and `/dashboard` |
-| B5, B6, B7 | OTP reuse, rate limiting, invalid email format |
-| B12 | Re-entering onboarding after completion |
 | C5 | Admin dashboard figures vs the database |
 | D15, D16, D21 | Duplicate reminders, draft visibility, large banner upload |
 | E10 | Deleting a coupon that has already been used |
@@ -486,7 +499,8 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | K6 | A rejected registration never has a QR token (correct behaviour), so there is nothing to scan — covered indirectly, an unknown token returns 404 |
 | J6 | Needs an online event with an open reminder window; the online/offline branch was verified directly in an earlier run |
 | E5 | Not testable — the coupon form has no "valid from" field, only Expiry Date |
-| R7, R12 | Need a third referred signup; the existing referral is already `completed` |
+| I6, F10, K9, C5, D15, D16, D21, E10, F8, M2, M10 | Still outstanding — see the per-section tables |
+| R12 | Needs a referred user's order to be *rejected*; the current referral is already `completed` |
 
 ---
 
@@ -494,14 +508,14 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 
 ### Summary
 
-**32 bugs. 11 fixed. 21 open.**
+**33 bugs. 15 fixed. 18 open.**
 
 | ID | Type | Severity | One line | Status |
 |---|---|---|---|---|
 | BUG-028 | Functionality | **Critical** | Contact form and newsletter are fake — success shown, nothing sent or stored | Open |
 | BUG-029 | **Security** | High | The same payment reference can be reused across unlimited orders | Open |
 | BUG-030 | Design | Low | Home page scrolls sideways on narrow screens | ✅ Fixed |
-| BUG-027 | **Security** | **Critical** | Suspending a user does nothing — they keep full access and can log back in | Open |
+| BUG-027 | **Security** | **Critical** | Suspending a user does nothing — they keep full access and can log back in | ⚠️ Partly fixed — needs re-test |
 | BUG-025 | Data / Logic | **Critical** | A slot can be oversold — two people pay, one seat exists, both get QR codes | Open |
 | BUG-026 | Data / Logic | High | A single-use coupon can be redeemed any number of times | Open |
 | BUG-023 | Data / Logic | High | Two slots can share the same slot ID, corrupting seat counts and reminders | Open |
@@ -512,7 +526,7 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | BUG-016 | Functionality | High | One order with a deleted user blanked the whole Admin Orders page | ✅ Fixed |
 | BUG-002 | Functionality | High | Any unknown URL renders a blank white page | ✅ Fixed |
 | BUG-010 | Data / Logic | High | A slot can be saved ending before it starts (already in live data) | Open |
-| BUG-012 | Data / Logic | High | Country code stored twice → `+91+919820115577` | Open |
+| BUG-012 | Data / Logic | High | Country code stored twice → `+91+919820115577` | ✅ Fixed |
 | BUG-014 | Functionality | High | Event card shows the wrong slot and understates seats | Open |
 | BUG-017 | Functionality | High | QR scanner fails silently, no manual fallback | Open |
 | BUG-019 | **Security** | High | Login OTPs stored in plain text in the email log — account takeover path | Open |
@@ -521,10 +535,11 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | BUG-004 | Content | Medium | All five footer activity links are dead | ✅ Fixed |
 | BUG-007 | Design | Medium | "Our Impact in Numbers" heading printed twice | ✅ Fixed |
 | BUG-011 | Functionality | Medium | Validation and duplicate-key errors return "Internal server error" | Open |
-| BUG-013 | Usability | Medium | Invalid referral code says "Code applied", then is discarded | Open |
+| BUG-013 | Usability | Medium | Invalid referral code says "Code applied", then is discarded | ✅ Fixed |
 | BUG-015 | Design | Medium | Savings badge ignores the coupon ("Save ₹400" when ₹800 was saved) | Open |
 | BUG-005 | Content | Low | All four social icons link to `/` | ✅ Fixed |
 | BUG-032 | Design | Medium | Footer headings invisible — near-black on navy | ✅ Fixed |
+| BUG-033 | Usability | Medium | A malformed email was accepted and "OTP sent successfully" reported | ✅ Fixed |
 | BUG-006 | Content | Low | Co-founder social links are `href="#"` | ✅ Fixed |
 | BUG-008 | Design | Low | Meet Link field shows for offline events | Open |
 | BUG-009 | Content | Low | Reminder chip reads "1 days before" | Open |
@@ -618,6 +633,15 @@ Recorded so nobody re-raises them:
 - **Fix applied:** logo constrained to 64×64 with the brand name set as text beneath it, giving a compact header that still reads as branded. Rebuilt — verified present in all 20 generated templates.
 - **Test:** M-series design check
 
+#### BUG-033 — A malformed email address was accepted and reported as sent
+- **Type:** Usability / Robustness
+- **Severity:** Medium
+- **What happens:** `POST /auth/request-otp` checked only that `email` was present, never its shape. `notanemail`, `no@domain`, `@nouser.com` and friends were hashed into an OTP row, queued to the outbox, and answered with **`200 OTP sent successfully to your email.`**
+- **Why it is wrong:** someone who mistypes their address is told the code is on its way and then waits for a mail that can never arrive, with nothing on screen suggesting they look at what they typed. The failure surfaces in the outbox instead of at the person who could fix it, and every junk address queues real send work.
+- **Fix:** a deliberately permissive shape check (one `@`, no spaces, a dot in the domain — anything stricter starts rejecting deliverable addresses) before the OTP is created, returning `400 That does not look like a valid email address.` Existence is still never checked, and never should be here.
+- **Verified:** five malformed addresses all rejected with that message; a well-formed one still sends.
+- **Test:** B7 ⬜ → ✅
+
 #### BUG-032 — Footer headings were invisible: near-black text on the navy footer
 - **Type:** Design
 - **Severity:** Medium
@@ -679,6 +703,11 @@ Recorded so nobody re-raises them:
   2. `verifyEmailOtp` — refuse to issue tokens to a suspended account
   3. On suspension, invalidate existing sessions (`Session.updateMany({ userId }, { isActive: false })` — the helper already exists in `session.service.ts`)
 - **Test:** N7 ❌
+- **Partly fixed — two of the three are done:**
+  1. ✅ `middleware/auth.ts` now loads the account on every request and returns `403 This account has been suspended` when `isActive` is false. (Done earlier, alongside the deleted-account session fix.)
+  2. ✅ `verifyEmailOtp` refuses to issue tokens to a suspended account — a correct OTP proves who someone is, not that they are still allowed in. Without this a suspended user could simply log in again and collect a fresh token.
+  3. ❌ **Still open:** existing sessions are not invalidated at the moment of suspension. In practice (1) already blocks them on their next request, so the hole is closed; tidying up the session rows is correctness rather than exposure.
+- **Needs a re-run of N7** to confirm end to end. Not re-tested in Run 12, which was scoped to section B.
 
 #### BUG-026 — A single-use coupon can be redeemed any number of times
 - **Type:** Data / Logic
@@ -855,6 +884,8 @@ Recorded so nobody re-raises them:
 - **How to reproduce:** Complete onboarding with an Indian number. Inspect the user document, or look at the SMS stub output.
 - **Fix direction:** Pick one source of truth. Simplest is to store `mobile` as the national number only (`9820115577`) and keep `countryCode` separate; the phone field already knows both. Alternatively drop `countryCode` entirely, since `mobile` is already a full E.164 number. Then fix the two concatenation sites (`sms.service.ts`, `notifications.ts`).
 - **Test:** B9 ⚠️
+- **Fixed:** one canonical shape, E.164, decided in a new `backend/src/utils/phone.ts`. `normalizeMobile()` runs at both ends of the mobile-OTP exchange, so a client sending `+919820115577` and one sending `9820115577` with `+91` land on the same number instead of two different accounts — which also means the OTP verifies whichever form the second call uses. `countryCode` is still stored, because knowing the country is useful; it is simply no longer a prefix anyone glues back on. The two concatenation sites are gone: `sms.service.ts` now takes one already-complete number, and `notifications.ts` passes `user.mobile` straight through.
+- **Verified:** SMS stub prints `📱 SMS SENT TO: +919820115599`. The stored document reads `mobile: "+919820115599"`, `countryCode: "+91"`. A national-form submission (`9820115533` + `+91`) stored `+919820115533` and still verified its OTP.
 
 #### BUG-013 — An invalid referral code reports "Code applied" and is then silently discarded
 - **Type:** Functionality / Usability
@@ -867,6 +898,10 @@ Recorded so nobody re-raises them:
 - **How to reproduce:** Onboarding → step 4 → type any nonsense code → it says "Code applied" → finish onboarding → check the user document for `referredBy`.
 - **Fix direction:** Validate the code against the server before accepting it. Show "Code applied" only for a real one and a clear "We could not find that code" otherwise. A new endpoint such as `GET /api/v1/referrals/validate/:code` would do it.
 - **Test:** B13 ❌
+- **Fixed, in two halves:**
+  1. **`GET /api/v1/referrals/validate/:code`** (auth-only, so it cannot be used to enumerate codes anonymously) answers `{ valid, referrerName }` or `{ valid, reason }`. It names the referrer as first name plus a last initial — "Yash K." — never the full name or email. Your own code gets its own reason rather than being lumped in with "not found". The onboarding form calls it on a 450 ms debounce, with a sequence guard so a slow earlier reply cannot overwrite a newer one.
+  2. **The submit path reports the truth.** `onboarding` returns `referral: { applied, code, reason }`. It reports rather than throws on purpose: the mobile OTP has already been consumed by that point, so failing the request would strand someone at the last step with no way to retry. Only a code the client has seen confirmed is sent at all.
+- **Verified in the browser:** the same input that used to show a green "Code applied: ZZZZ9999" now shows amber "We could not find that code. You can carry on without one."; a real code shows green "Referred by Yash K. — we will credit them." The two states are no longer confusable. End to end, the referred account was created with `referredBy` set and a `Referral` row at `pending`, and the referrer was emailed.
 
 #### BUG-011 — Validation and duplicate-key errors surface as "Internal server error"
 - **Type:** Functionality / Usability

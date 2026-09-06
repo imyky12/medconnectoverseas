@@ -1,94 +1,151 @@
-import { useState, useEffect } from 'react';
-import OtpInput from '../components/ui/otp-input';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'react-phone-number-input/style.css';
 import PhoneInput, { getCountryCallingCode } from 'react-phone-number-input';
 import type { Country } from 'react-phone-number-input';
 import en from 'react-phone-number-input/locale/en.json';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Card, CardDescription, CardTitle } from '../components/ui/card';
-import { Label } from '../components/ui/label';
-import { Progress } from '../components/ui/progress';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Loader2, ArrowRight, ArrowLeft, Check, Search, X,
+  AlertCircle, MessageSquare, Gift, User as UserIcon, Smartphone,
+} from 'lucide-react';
+
+import OtpInput from '../components/ui/otp-input';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import Navbar from '../components/landing/navbar';
-import { Loader2, ArrowRight, ArrowLeft, Stethoscope, HeartPulse, Activity, Hospital, ShieldCheck, Gift } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
-type Step = 'intro' | 'name' | 'country' | 'source' | 'referral' | 'phone' | 'otp';
-const stepOrder: Step[] = ['intro', 'name', 'country', 'source', 'referral', 'phone', 'otp'];
+/**
+ * Setting up a new member's profile.
+ *
+ * This used to be seven screens, one of which was a title card with a single
+ * button on it and two of which held one field each. Seven "Continue" clicks to
+ * hand over five facts reads as a form that does not respect the person filling
+ * it in. It is four now, grouped by what the questions are *for*: who you are,
+ * how you got here, and proving the number is yours. Nothing was dropped.
+ *
+ * The referral code is checked against the server the moment it is typed. It
+ * previously showed a green "Code applied" for any string at all and then threw
+ * unrecognised codes away in silence, so a real code and a nonsense one looked
+ * identical and nobody was ever told their friend had not been credited.
+ */
 
-// Build sorted country list from react-phone-number-input's locale data
-const countryList: { code: string; name: string }[] = Object.entries(en as Record<string, string>)
+type Step = 'about' | 'finding' | 'phone' | 'verify';
+
+const STEPS: { id: Step; label: string }[] = [
+  { id: 'about', label: 'About you' },
+  { id: 'finding', label: 'How you found us' },
+  { id: 'phone', label: 'Your number' },
+  { id: 'verify', label: 'Verify' },
+];
+
+const SOURCES = [
+  { value: 'Social Media', hint: 'Instagram, LinkedIn, elsewhere' },
+  { value: 'Friend / Colleague', hint: 'Someone told you about us' },
+  { value: 'Search Engine', hint: 'You found us searching' },
+  { value: 'Event / Seminar', hint: 'You met us in person' },
+  { value: 'Other', hint: 'Somewhere else entirely' },
+];
+
+const COUNTRIES: { code: string; name: string }[] = Object.entries(en as Record<string, string>)
   .filter(([code]) => code !== 'ZZ' && code.length === 2)
   .map(([code, name]) => ({ code, name }))
   .sort((a, b) => a.name.localeCompare(b.name));
+
+/** What the server said about the referral code currently typed in. */
+type CodeCheck =
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'valid'; referrerName: string }
+  | { state: 'invalid'; reason: string };
 
 export default function OnboardingPage() {
   const { user, isAuthenticated, isLoading: isAuthLoading, updateUser } = useAuth();
   const navigate = useNavigate();
 
-  const [currentStep, setCurrentStep] = useState<Step>('intro');
+  const [step, setStep] = useState<Step>('about');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [country, setCountry] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [source, setSource] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [codeCheck, setCodeCheck] = useState<CodeCheck>({ state: 'idle' });
   const [phone, setPhone] = useState<string | undefined>('');
   const [phoneCountry, setPhoneCountry] = useState<Country>('IN');
-  const [howDidYouHearAboutUs, setHowDidYouHearAboutUs] = useState('');
-  const [referredByCode, setReferredByCode] = useState('');
   const [otp, setOtp] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const index = STEPS.findIndex((s) => s.id === step);
+
   useEffect(() => {
     const pending = localStorage.getItem('pendingReferralCode');
-    if (pending) setReferredByCode(pending);
+    if (pending) setReferralCode(pending.toUpperCase());
   }, []);
 
   useEffect(() => {
-    if (!isAuthLoading) {
-      if (!isAuthenticated) navigate('/');
-      else if (user?.isOnboardingComplete) navigate('/dashboard');
-    }
+    if (isAuthLoading) return;
+    if (!isAuthenticated) navigate('/', { replace: true });
+    // Onboarding is a one-time gate. Someone who has already been through it
+    // has no fields left to fill, so send them where they were going.
+    else if (user?.isOnboardingComplete) navigate('/dashboard', { replace: true });
   }, [isAuthLoading, isAuthenticated, user, navigate]);
 
-  if (isAuthLoading || !isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-ink h-10 w-10" />
-      </div>
-    );
-  }
+  /* ---- referral code, checked against the server as it is typed ---- */
 
-  const currentIndex = stepOrder.indexOf(currentStep);
-  const progressPercentage = (currentIndex / (stepOrder.length - 1)) * 100;
+  const checkSeq = useRef(0);
 
-  const nextStep = () => {
+  const checkCode = useCallback(async (raw: string) => {
+    const code = raw.trim().toUpperCase();
+    const seq = ++checkSeq.current;
+
+    if (!code) { setCodeCheck({ state: 'idle' }); return; }
+    setCodeCheck({ state: 'checking' });
+
+    try {
+      const res: any = await api.get(`/referrals/validate/${encodeURIComponent(code)}`);
+      // A slower earlier request must never overwrite a newer answer.
+      if (seq !== checkSeq.current) return;
+      if (res?.data?.valid) setCodeCheck({ state: 'valid', referrerName: res.data.referrerName });
+      else setCodeCheck({ state: 'invalid', reason: res?.data?.reason || 'We could not find that code.' });
+    } catch {
+      if (seq !== checkSeq.current) return;
+      // A failed check is not a failed code. Say so, and let them continue.
+      setCodeCheck({ state: 'invalid', reason: 'We could not check that code just now.' });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!referralCode.trim()) { setCodeCheck({ state: 'idle' }); return; }
+    const t = setTimeout(() => void checkCode(referralCode), 450);
+    return () => clearTimeout(t);
+  }, [referralCode, checkCode]);
+
+  /* ---- navigation ---- */
+
+  const go = (dir: 1 | -1) => {
     setError('');
-    setCountrySearch('');
-    if (currentIndex < stepOrder.length - 1) setCurrentStep(stepOrder[currentIndex + 1]);
+    const next = STEPS[index + dir];
+    if (next) setStep(next.id);
   };
 
-  const prevStep = () => {
-    setError('');
-    setCountrySearch('');
-    if (currentIndex > 0) setCurrentStep(stepOrder[currentIndex - 1]);
-  };
+  const canLeaveAbout = firstName.trim() !== '' && lastName.trim() !== '' && country !== '';
+  const canLeaveFinding = source !== '';
 
   const handleSendOtp = async () => {
-    if (!phone) { setError('Please enter a valid phone number'); return; }
+    if (!phone) { setError('Please enter your mobile number.'); return; }
     setIsLoading(true);
     setError('');
     try {
-      const dialCode = phoneCountry ? `+${getCountryCallingCode(phoneCountry)}` : '+91';
+      const dialCode = `+${getCountryCallingCode(phoneCountry)}`;
       const res: any = await api.post('/profile/request-mobile-otp', { mobile: phone, countryCode: dialCode });
-      if (res.success) nextStep();
-      else setError(res.message || 'Failed to send OTP.');
+      if (res.success) { setOtp(''); go(1); }
+      else setError(res.message || 'We could not send the code.');
     } catch (err: any) {
-      setError(err.message || 'Error occurred while sending OTP.');
+      setError(err?.message || 'We could not send the code.');
     } finally {
       setIsLoading(false);
     }
@@ -99,280 +156,453 @@ export default function OnboardingPage() {
     setIsLoading(true);
     setError('');
     try {
-      const dialCode = phoneCountry ? `+${getCountryCallingCode(phoneCountry)}` : '+91';
+      const dialCode = `+${getCountryCallingCode(phoneCountry)}`;
       const res: any = await api.post('/profile/onboarding', {
-        firstName,
-        lastName,
-        country,
+        firstName, lastName, country,
         mobile: phone,
         countryCode: dialCode,
-        howDidYouHearAboutUs,
+        howDidYouHearAboutUs: source,
         otp,
-        referredByCode: referredByCode.trim().toUpperCase() || undefined,
+        // Only a code the server confirmed is sent. An unverified one would be
+        // dropped server-side anyway; not sending it keeps the two in step.
+        referredByCode: codeCheck.state === 'valid' ? referralCode.trim().toUpperCase() : undefined,
       });
       if (res.success) {
         localStorage.removeItem('pendingReferralCode');
         updateUser(res.data.user);
         navigate('/dashboard');
       } else {
-        setError(res.message || 'Failed to complete onboarding.');
+        setError(res.message || 'We could not finish setting up your profile.');
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred.');
+      setError(err?.message || 'We could not finish setting up your profile.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const filteredCountries = countrySearch.trim()
-    ? countryList.filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()))
-    : countryList;
+  if (isAuthLoading || !isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-paper">
+        <Loader2 className="h-8 w-8 animate-spin text-signal" />
+      </div>
+    );
+  }
 
-  const slideVariants = {
-    initial: { opacity: 0, x: 20 },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -20 },
-  };
+  const matches = countrySearch.trim()
+    ? COUNTRIES.filter((c) => c.name.toLowerCase().includes(countrySearch.trim().toLowerCase()))
+    : COUNTRIES;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar hideLinks={true} />
+    <div className="flex min-h-screen flex-col bg-paper">
+      <Navbar hideLinks />
 
-      <main className="flex-1 flex flex-col items-center justify-center py-20 px-4">
-        <div className="w-full max-w-lg">
-          {currentIndex > 0 && (
-            <div className="mb-8">
-              <Progress value={progressPercentage} className="h-2 bg-gray-200 text-ink" />
-              <div className="text-right text-sm text-gray-500 mt-2 font-medium">
-                Step {currentIndex} of {stepOrder.length - 1}
-              </div>
-            </div>
-          )}
+      <main className="flex flex-1 items-start justify-center px-4 py-10 sm:items-center sm:py-16">
+        <div className="w-full max-w-[540px]">
 
-          <Card className="shadow-lg border-0 bg-white min-h-[400px] flex flex-col relative overflow-hidden">
+          {/* Where you are, and what is still to come. A rail rather than a bare
+              bar: the fill says how far, the labels say of what. */}
+          <ol className="mb-6 flex items-center gap-1.5 sm:gap-2">
+            {STEPS.map((s, i) => (
+              <li key={s.id} className="flex-1">
+                <div
+                  className={[
+                    'h-1 rounded-full transition-colors duration-300',
+                    i <= index ? 'bg-signal' : 'bg-rule',
+                  ].join(' ')}
+                />
+                <span
+                  className={[
+                    'mt-2 hidden text-[11px] font-medium sm:block',
+                    i === index ? 'text-ink' : 'text-faint',
+                  ].join(' ')}
+                >
+                  {s.label}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="mb-4 text-xs font-medium text-muted sm:hidden">
+            Step {index + 1} of {STEPS.length} · {STEPS[index].label}
+          </p>
+
+          <div className="rounded-2xl border border-rule bg-surface p-6 shadow-[0_1px_2px_rgba(7,26,51,0.04)] sm:p-8">
             <AnimatePresence mode="wait">
               <motion.div
-                key={currentStep}
-                variants={slideVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.3 }}
-                className="flex-1 flex flex-col"
+                key={step}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.18 }}
               >
 
-                {currentStep === 'intro' && (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <div className="h-20 w-20 bg-ink/10 rounded-full flex items-center justify-center mb-6">
-                      <Stethoscope className="h-10 w-10 text-ink" />
-                    </div>
-                    <CardTitle className="text-3xl text-ink mb-4">Let us set up your profile</CardTitle>
-                    <CardDescription className="text-base text-gray-600 mb-8 max-w-sm">
-                      We need a few details to build your medical student profile. It only takes a minute.
-                    </CardDescription>
-                    <Button onClick={nextStep} className="bg-ink hover:bg-ink text-white px-8 py-6 rounded-full text-lg w-full">
-                      Get started <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </div>
-                )}
+                {/* ---------------------------------------- 1. About you */}
+                {step === 'about' && (
+                  <>
+                    <StepHeader
+                      icon={<UserIcon className="h-4 w-4" />}
+                      title="First, who are we speaking to?"
+                      subtitle="This is the name that goes on your event passes and certificates, so use the one you would want printed."
+                    />
 
-                {currentStep === 'name' && (
-                  <div className="flex-1 flex flex-col p-8 pb-4">
-                    <div className="flex items-center mb-6">
-                      <Activity className="h-6 w-6 text-ink mr-3" />
-                      <CardTitle className="text-2xl text-ink">What should we call you?</CardTitle>
-                    </div>
-                    <div className="space-y-6 flex-1">
-                      <div className="space-y-2">
-                        <Label className="text-gray-700">First Name</Label>
-                        <Input autoFocus value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="E.g. John" className="h-14 text-lg bg-gray-50 border-gray-200" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-gray-700">Last Name</Label>
-                        <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="E.g. Doe" className="h-14 text-lg bg-gray-50 border-gray-200" />
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center mt-8">
-                      <Button variant="ghost" onClick={prevStep} className="text-gray-500"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                      <Button onClick={nextStep} disabled={!firstName.trim() || !lastName.trim()} className="bg-ink hover:bg-ink text-white px-8 h-12">
-                        Continue <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {currentStep === 'country' && (
-                  <div className="flex-1 flex flex-col p-8 pb-4">
-                    <div className="flex items-center mb-6">
-                      <Hospital className="h-6 w-6 text-ink mr-3" />
-                      <CardTitle className="text-2xl text-ink">Where are you based?</CardTitle>
-                    </div>
-                    <div className="flex-1 flex flex-col gap-3 min-h-0">
-                      <div className="space-y-2">
-                        <Label className="text-gray-700">Country of Residence</Label>
-                        <Input
+                    <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                      <Field label="First name">
+                        <input
                           autoFocus
-                          value={countrySearch}
-                          onChange={e => { setCountrySearch(e.target.value); setCountry(''); }}
-                          placeholder="Search country…"
-                          className="h-12 bg-gray-50 border-gray-200"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          placeholder="Priya"
+                          className={inputClass}
                         />
-                        {country && (
-                          <p className="text-xs text-ink font-semibold">Selected: {country}</p>
-                        )}
-                      </div>
-                      <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-52 bg-white">
-                        {filteredCountries.length === 0 ? (
-                          <p className="text-sm text-gray-400 p-4 text-center">No countries found</p>
-                        ) : (
-                          filteredCountries.map(c => (
+                      </Field>
+                      <Field label="Last name">
+                        <input
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          placeholder="Sharma"
+                          className={inputClass}
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="mt-4">
+                      <Field label="Where you are studying or based">
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+                          <input
+                            value={countryOpen ? countrySearch : country}
+                            onChange={(e) => { setCountrySearch(e.target.value); setCountry(''); setCountryOpen(true); }}
+                            onFocus={() => { setCountryOpen(true); setCountrySearch(''); }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && matches.length > 0) {
+                                e.preventDefault();
+                                setCountry(matches[0].name);
+                                setCountryOpen(false);
+                              }
+                              if (e.key === 'Escape') setCountryOpen(false);
+                            }}
+                            placeholder="Start typing a country…"
+                            className={`${inputClass} pl-9 pr-9`}
+                          />
+                          {country && !countryOpen && (
+                            <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-confirmed" />
+                          )}
+                          {countryOpen && (
                             <button
-                              key={c.code}
                               type="button"
-                              onClick={() => { setCountry(c.name); setCountrySearch(c.name); }}
-                              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${country === c.name ? 'bg-ink text-white font-semibold' : 'hover:bg-gray-50 text-gray-700'}`}
+                              onClick={() => setCountryOpen(false)}
+                              aria-label="Close country list"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-body"
                             >
-                              {c.name}
+                              <X className="h-4 w-4" />
                             </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center mt-6">
-                      <Button variant="ghost" onClick={prevStep} className="text-gray-500"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                      <Button onClick={nextStep} disabled={!country.trim()} className="bg-ink hover:bg-ink text-white px-8 h-12">
-                        Continue <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {currentStep === 'source' && (
-                  <div className="flex-1 flex flex-col p-8 pb-4">
-                    <div className="flex items-center mb-6">
-                      <HeartPulse className="h-6 w-6 text-ink mr-3" />
-                      <CardTitle className="text-2xl text-ink">How did you hear about us?</CardTitle>
-                    </div>
-                    <div className="space-y-4 flex-1">
-                      {['Social Media', 'Friend / Colleague', 'Search Engine', 'Event / Seminar', 'Other'].map((option) => (
-                        <div
-                          key={option}
-                          onClick={() => setHowDidYouHearAboutUs(option)}
-                          className={`p-4 rounded-lg border-2 cursor-pointer font-medium transition-colors ${howDidYouHearAboutUs === option ? 'border-ink bg-ink/5 text-ink' : 'border-gray-100 bg-white hover:border-gray-200 text-gray-700'}`}
-                        >
-                          {option}
+                          )}
                         </div>
-                      ))}
+                      </Field>
+
+                      {countryOpen && (
+                        <div
+                          role="listbox"
+                          className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-rule bg-surface"
+                        >
+                          {matches.length === 0 ? (
+                            <p className="px-4 py-6 text-center text-sm text-faint">
+                              Nothing matches that search.
+                            </p>
+                          ) : (
+                            matches.map((c) => (
+                              <button
+                                key={c.code}
+                                type="button"
+                                role="option"
+                                aria-selected={country === c.name}
+                                onClick={() => { setCountry(c.name); setCountryOpen(false); }}
+                                className={[
+                                  'flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-colors',
+                                  country === c.name ? 'bg-signal-wash font-semibold text-ink' : 'text-body hover:bg-paper',
+                                ].join(' ')}
+                              >
+                                {c.name}
+                                {country === c.name && <Check className="h-4 w-4 text-signal" />}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex justify-between items-center mt-8">
-                      <Button variant="ghost" onClick={prevStep} className="text-gray-500"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                      <Button onClick={nextStep} disabled={!howDidYouHearAboutUs} className="bg-ink hover:bg-ink text-white px-8 h-12">
-                        Continue <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+
+                    <Actions
+                      onNext={() => go(1)}
+                      nextDisabled={!canLeaveAbout}
+                      nextLabel="Continue"
+                    />
+                  </>
                 )}
 
-                {currentStep === 'referral' && (
-                  <div className="flex-1 flex flex-col p-8 pb-4">
-                    <div className="flex items-center mb-6">
-                      <Gift className="h-6 w-6 text-ink mr-3" />
-                      <CardTitle className="text-2xl text-ink">Were you referred by someone?</CardTitle>
+                {/* ------------------------------------ 2. How you found us */}
+                {step === 'finding' && (
+                  <>
+                    <StepHeader
+                      icon={<MessageSquare className="h-4 w-4" />}
+                      title="How did you come across us?"
+                      subtitle="It tells us where students are actually finding us, which is how we decide where to put our effort."
+                    />
+
+                    <div className="mt-6 space-y-2">
+                      {SOURCES.map((s) => {
+                        const picked = source === s.value;
+                        return (
+                          <button
+                            key={s.value}
+                            type="button"
+                            onClick={() => setSource(s.value)}
+                            className={[
+                              'flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors',
+                              picked
+                                ? 'border-signal bg-signal-wash'
+                                : 'border-rule bg-surface hover:bg-paper',
+                            ].join(' ')}
+                          >
+                            <span>
+                              <span className={`block text-sm font-semibold ${picked ? 'text-ink' : 'text-body'}`}>
+                                {s.value}
+                              </span>
+                              <span className="block text-xs text-muted">{s.hint}</span>
+                            </span>
+                            <span
+                              className={[
+                                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                                picked ? 'border-signal bg-signal text-white' : 'border-rule',
+                              ].join(' ')}
+                            >
+                              {picked && <Check className="h-3 w-3" />}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <p className="text-gray-500 text-sm mb-6">If a friend referred you, enter their code to get a discount on your first course. Skip if you don't have one.</p>
-                    <div className="space-y-2 flex-1">
-                      <Label className="text-gray-700">Referral Code (optional)</Label>
-                      <Input
-                        autoFocus
-                        value={referredByCode}
-                        onChange={e => setReferredByCode(e.target.value.toUpperCase())}
-                        placeholder="E.g. 4567"
-                        className="h-14 text-lg bg-gray-50 border-gray-200  font-mono "
-                        maxLength={20}
-                      />
-                      {referredByCode && (
-                        <p className="text-xs text-ink font-medium mt-1">
-                          Code applied: <span className="font-mono font-bold">{referredByCode}</span>
+
+                    {/* Referral sits here rather than on a screen of its own —
+                        it is the same question asked one level deeper. */}
+                    <div className="mt-6 rounded-xl border border-rule-soft bg-paper p-4">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <Gift className="h-4 w-4 text-signal" />
+                        <span className="text-sm font-semibold text-ink">Were you referred by a friend?</span>
+                        <span className="text-xs text-faint">Optional</span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted">
+                        Enter their code and they get credited when you make your first booking.
+                      </p>
+
+                      <div className="relative mt-3">
+                        <input
+                          value={referralCode}
+                          onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                          placeholder="e.g. 5577"
+                          maxLength={20}
+                          aria-invalid={codeCheck.state === 'invalid'}
+                          className={[
+                            'h-11 w-full rounded-lg border bg-surface px-3 pr-10 font-mono text-[15px] tracking-wide',
+                            'outline-none transition-colors placeholder:font-sans placeholder:tracking-normal placeholder:text-faint',
+                            codeCheck.state === 'invalid'
+                              ? 'border-holding focus:border-holding'
+                              : codeCheck.state === 'valid'
+                                ? 'border-confirmed focus:border-confirmed'
+                                : 'border-rule focus:border-signal',
+                          ].join(' ')}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {codeCheck.state === 'checking' && <Loader2 className="h-4 w-4 animate-spin text-faint" />}
+                          {codeCheck.state === 'valid' && <Check className="h-4 w-4 text-confirmed" />}
+                          {codeCheck.state === 'invalid' && <AlertCircle className="h-4 w-4 text-holding" />}
+                        </span>
+                      </div>
+
+                      {/* The whole point of the change: these two states have to
+                          look different, and they have to be true. */}
+                      {codeCheck.state === 'valid' && (
+                        <p className="mt-2 text-xs font-medium text-confirmed">
+                          Referred by {codeCheck.referrerName} — we will credit them.
+                        </p>
+                      )}
+                      {codeCheck.state === 'invalid' && (
+                        <p className="mt-2 text-xs font-medium text-holding">
+                          {codeCheck.reason} You can carry on without one.
                         </p>
                       )}
                     </div>
-                    <div className="flex justify-between items-center mt-8">
-                      <Button variant="ghost" onClick={prevStep} className="text-gray-500"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                      <Button onClick={nextStep} className="bg-ink hover:bg-ink text-white px-8 h-12">
-                        {referredByCode.trim() ? 'Apply & Continue' : 'Skip'} <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+
+                    <Actions
+                      onBack={() => go(-1)}
+                      onNext={() => go(1)}
+                      nextDisabled={!canLeaveFinding || codeCheck.state === 'checking'}
+                      nextLabel="Continue"
+                    />
+                  </>
                 )}
 
-                {currentStep === 'phone' && (
-                  <div className="flex-1 flex flex-col p-8 pb-4">
-                    <div className="flex items-center mb-6">
-                      <ShieldCheck className="h-6 w-6 text-ink mr-3" />
-                      <CardTitle className="text-2xl text-ink">Your mobile number</CardTitle>
+                {/* --------------------------------------- 3. Your number */}
+                {step === 'phone' && (
+                  <>
+                    <StepHeader
+                      icon={<Smartphone className="h-4 w-4" />}
+                      title="What is your mobile number?"
+                      subtitle="We text a six-digit code to confirm it is yours. It is also how we reach you if an event you have booked moves."
+                    />
+
+                    <div className="mt-6">
+                      <Field label="Mobile number">
+                        <div className="flex h-12 items-center rounded-lg border border-rule bg-surface px-3 focus-within:border-signal">
+                          <PhoneInput
+                            international
+                            defaultCountry="IN"
+                            value={phone}
+                            onChange={setPhone}
+                            onCountryChange={(c) => { if (c) setPhoneCountry(c); }}
+                            className="w-full border-0 bg-transparent text-[15px] outline-none focus:ring-0"
+                          />
+                        </div>
+                      </Field>
+                      {error && <ErrorLine>{error}</ErrorLine>}
                     </div>
-                    <p className="text-gray-600 mb-6 font-medium">Please provide your mobile number for a secure SMS verification code.</p>
-                    <div className="space-y-2 flex-1">
-                      <Label className="text-gray-700">Mobile Number</Label>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 h-14 flex items-center">
-                        <PhoneInput
-                          international
-                          defaultCountry="IN"
-                          value={phone}
-                          onChange={setPhone}
-                          onCountryChange={(c) => { if (c) setPhoneCountry(c); }}
-                          className="w-full bg-transparent border-0 outline-none focus:ring-0 text-lg px-2"
-                        />
-                      </div>
-                      {error && <p className="text-declined text-sm font-medium mt-2">{error}</p>}
-                    </div>
-                    <div className="flex justify-between items-center mt-8">
-                      <Button variant="ghost" onClick={prevStep} className="text-gray-500" disabled={isLoading}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
-                      <Button onClick={handleSendOtp} disabled={!phone || isLoading} className="bg-ink hover:bg-ink text-white px-8 h-12">
-                        {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Send OTP'}
-                      </Button>
-                    </div>
-                  </div>
+
+                    <Actions
+                      onBack={() => go(-1)}
+                      onNext={handleSendOtp}
+                      nextDisabled={!phone || isLoading}
+                      nextLabel={isLoading ? 'Sending' : 'Send me the code'}
+                      busy={isLoading}
+                    />
+                  </>
                 )}
 
-                {currentStep === 'otp' && (
-                  <div className="flex-1 flex flex-col p-8 pb-4 items-center text-center">
-                    <div className="flex items-center justify-center mb-6 w-16 h-16 bg-ink/10 rounded-full">
-                      <ShieldCheck className="h-8 w-8 text-ink" />
-                    </div>
-                    <CardTitle className="text-2xl text-ink mb-2">Check your messages</CardTitle>
-                    <p className="text-gray-500 mb-8 max-w-sm">
-                      We've sent a 6-digit code to <span className="font-medium text-ink">{phone}</span>.
-                    </p>
-                    <div className="w-full mb-8 flex-1">
+                {/* ------------------------------------------- 4. Verify */}
+                {step === 'verify' && (
+                  <>
+                    <StepHeader
+                      icon={<Smartphone className="h-4 w-4" />}
+                      title="Enter the code we texted you"
+                      subtitle={
+                        <>
+                          Sent to <span className="font-semibold text-ink">{phone}</span>. It is valid for five minutes.
+                        </>
+                      }
+                    />
+
+                    <div className="mt-7">
                       <OtpInput
                         value={otp}
-                        onChange={setOtp}
+                        onChange={(v) => { setOtp(v); if (error) setError(''); }}
                         invalid={!!error}
                         label="The 6-digit code we texted you"
                       />
-                      {error && <p className="text-declined text-sm font-medium mt-3">{error}</p>}
+                      {error && <ErrorLine center>{error}</ErrorLine>}
                     </div>
-                    <div className="w-full space-y-4">
-                      <Button
+
+                    <div className="mt-7 space-y-3">
+                      <button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={otp.length !== 6 || isLoading}
-                        className="w-full bg-ink hover:bg-ink text-white h-14 rounded-full text-lg shadow-md"
+                        className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-ink text-[15px] font-semibold text-white transition-colors hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Finish setting up'}
-                      </Button>
-                      <Button variant="ghost" onClick={prevStep} className="text-gray-500" disabled={isLoading}>
-                        Change Number
-                      </Button>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Finish setting up <ArrowRight className="h-4 w-4" /></>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => go(-1)}
+                        disabled={isLoading}
+                        className="w-full text-sm font-medium text-muted transition-colors hover:text-ink disabled:opacity-40"
+                      >
+                        Use a different number
+                      </button>
                     </div>
-                  </div>
+                  </>
                 )}
 
               </motion.div>
             </AnimatePresence>
-          </Card>
+          </div>
+
+          <p className="mt-5 text-center text-xs text-faint">
+            Your details are used to run your bookings and nothing else.
+          </p>
         </div>
       </main>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ bits */
+
+const inputClass =
+  'h-12 w-full rounded-lg border border-rule bg-surface px-3 text-[15px] text-body outline-none ' +
+  'transition-colors placeholder:text-faint focus:border-signal';
+
+function StepHeader({ icon, title, subtitle }: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: React.ReactNode;
+}) {
+  return (
+    <div>
+      <span className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-signal-wash text-signal">
+        {icon}
+      </span>
+      <h1 className="font-display text-[22px] font-semibold leading-tight text-ink sm:text-[25px]">
+        {title}
+      </h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted">{subtitle}</p>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[13px] font-semibold text-ink">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ErrorLine({ children, center }: { children: React.ReactNode; center?: boolean }) {
+  return (
+    <p className={`mt-2 text-sm font-medium text-declined ${center ? 'text-center' : ''}`}>
+      {children}
+    </p>
+  );
+}
+
+function Actions({ onBack, onNext, nextDisabled, nextLabel, busy }: {
+  onBack?: () => void;
+  onNext: () => void;
+  nextDisabled?: boolean;
+  nextLabel: string;
+  busy?: boolean;
+}) {
+  return (
+    <div className="mt-7 flex items-center justify-between gap-3 border-t border-rule-soft pt-5">
+      {onBack ? (
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-ink disabled:opacity-40"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+      ) : (
+        <span />
+      )}
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={nextDisabled}
+        className="inline-flex h-11 items-center gap-2 rounded-lg bg-ink px-6 text-[15px] font-semibold text-white transition-colors hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{nextLabel} <ArrowRight className="h-4 w-4" /></>}
+      </button>
     </div>
   );
 }
