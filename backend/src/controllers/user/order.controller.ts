@@ -5,7 +5,9 @@ import { Order } from '../../models/Order.model';
 import { Course } from '../../models/Course.model';
 import { Coupon } from '../../models/Coupon.model';
 import { User } from '../../models/User.model';
+import { randomUUID } from 'crypto';
 import { ApiError } from '../../utils/ApiError';
+import { assertPaymentReferenceUnused } from '../../services/payment-reference';
 import { notifyCourseOrderSubmitted } from '../../services/email/notifications';
 
 export const getMyOrders = asyncHandler(async (req: Request, res: Response) => {
@@ -92,8 +94,8 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.userId;
   const { courseId, transactionId, screenshotUrl, couponCode } = req.body;
 
-  if (!courseId || !transactionId || !screenshotUrl) {
-    throw new ApiError(400, 'Missing required fields: courseId, transactionId, screenshotUrl');
+  if (!courseId) {
+    throw new ApiError(400, 'Missing required field: courseId');
   }
 
   // 1. Validate course exists & is published
@@ -107,7 +109,8 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     status: { $in: ['pending', 'approved'] },
   });
   if (existingOrder) {
-    throw new ApiError(400, `You already have a ${existingOrder.status} order for this course.`);
+    // Worded around the article: "a approved order" was the previous output.
+    throw new ApiError(400, `Your order for this course is already ${existingOrder.status}.`);
   }
 
   let finalPrice = course.discountedPrice ?? course.price;
@@ -119,20 +122,37 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     finalPrice = result.finalPrice;
     appliedCouponId = result.couponId;
 
-    // Increment coupon usage count
-    await Coupon.findByIdAndUpdate(appliedCouponId, { $inc: { usedCount: 1 } });
+    // `usedCount` is deliberately NOT incremented here. It is claimed
+    // atomically at approval instead, together with the limit re-check — see
+    // `claimCouponUse` in admin/order.controller. Incrementing at order time as
+    // well would double-count every course coupon, and it also charged a use to
+    // orders that were later rejected.
   }
 
-  // 4. Create order
+  // 4. Payment proof, but only when there is something to pay.
+  const isFree = finalPrice <= 0;
+
+  if (!isFree && (!transactionId?.trim() || !screenshotUrl?.trim())) {
+    throw new ApiError(400, 'Missing required fields: transactionId, screenshotUrl');
+  }
+  if (!isFree) {
+    await assertPaymentReferenceUnused(transactionId);
+  }
+
   const order = await Order.create({
     user: userId,
     course: courseId,
     coupon: appliedCouponId,
     finalPrice,
-    transactionId: transactionId.trim(),
-    screenshotUrl: screenshotUrl.trim(),
-    status: 'pending',
+    transactionId: isFree ? `FREE-${randomUUID().slice(0, 8).toUpperCase()}` : transactionId.trim(),
+    screenshotUrl: isFree ? '' : screenshotUrl.trim(),
+    // Nothing to verify on a free enrolment, so access is granted immediately.
+    status: isFree ? 'approved' : 'pending',
   });
+
+  if (isFree) {
+    await Course.findByIdAndUpdate(courseId, { $inc: { totalEnrollments: 1 } });
+  }
 
   // Receipt to the buyer + alert to admins. Fire-and-forget: enqueue writes an
   // EmailLog row and returns, so a mail problem never fails the order.

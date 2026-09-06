@@ -7,21 +7,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { api } from "../../services/api";
 
 export default function NewsletterSignup() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState("");
+
+  /**
+   * Previously a `setTimeout` that thanked the person and stored nothing. Every
+   * address was discarded the moment the tab closed.
+   */
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    setTimeout(() => {
+    setError("");
+    try {
+      const res: any = await api.post("/newsletter/subscribe", {
+        email,
+        source: "newsletter-page",
+      });
+      if (res?.success) {
+        setIsSubmitted(true);
+        setEmail("");
+      } else {
+        setError(res?.message || "We could not sign you up. Please try again.");
+      }
+    } catch (err: any) {
+      setError(err?.message || "We could not sign you up. Please try again.");
+    } finally {
       setIsLoading(false);
-      setIsSubmitted(true);
-      setEmail("");
-    }, 1500);
+    }
   };
 
   return (
@@ -44,6 +62,11 @@ export default function NewsletterSignup() {
         </motion.div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </p>
+          )}
           <div className="space-y-2">
             <Input
               type="email"

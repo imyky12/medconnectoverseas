@@ -548,3 +548,80 @@ export async function notifyOrderStatusChange(
     console.error(`[notifications] status email failed for order ${orderId}:`, err);
   }
 }
+
+
+// ─── Contact form and newsletter ─────────────────────────────────────────────
+
+/**
+ * Acknowledges an enquiry to the sender, and alerts the team.
+ *
+ * Both are fire-and-forget and self-catching: the enquiry is already saved by
+ * the time these run, and a mail problem must not turn a successful submission
+ * into an error for someone who did nothing wrong.
+ */
+export async function notifyEnquiryReceived(enquiry: {
+  ticketId: string;
+  name: string;
+  email: string;
+  mobile?: string;
+  subject: string;
+  message: string;
+  createdAt: Date;
+  _id: unknown;
+}): Promise<void> {
+  const submittedOn = enquiry.createdAt.toLocaleString('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+
+  // To the person who wrote in.
+  void enqueue({
+    templateKey: 'contact-ack',
+    to: { address: enquiry.email, name: enquiry.name },
+    merge: {
+      name: enquiry.name,
+      ticket_id: enquiry.ticketId,
+      enquiry_subject: enquiry.subject,
+      message: enquiry.message,
+      submitted_on: submittedOn,
+      response_window: '2 working days',
+    },
+    relatedTo: { model: 'Enquiry', id: String(enquiry._id) },
+    dedupeKey: `contact-ack:${enquiry.ticketId}`,
+  });
+
+  // To the team.
+  const recipients = adminRecipients();
+  if (recipients.length === 0) {
+    console.warn('[notifications] MAIL_ADMIN_RECIPIENTS is empty — enquiry alert not sent');
+    return;
+  }
+  for (const address of recipients) {
+    void enqueue({
+      templateKey: 'admin-contact-new',
+      to: { address },
+      merge: {
+        name: enquiry.name,
+        email: enquiry.email,
+        mobile: enquiry.mobile || '(not provided)',
+        enquiry_subject: enquiry.subject,
+        message: enquiry.message,
+        submitted_on: submittedOn,
+        ticket_id: enquiry.ticketId,
+      },
+      relatedTo: { model: 'Enquiry', id: String(enquiry._id) },
+      dedupeKey: `admin-contact:${enquiry.ticketId}:${address}`,
+    });
+  }
+}
+
+/** Welcomes a new newsletter subscriber. */
+export async function notifyNewsletterwelcome(email: string): Promise<void> {
+  void enqueue({
+    templateKey: 'newsletter-welcome',
+    to: { address: email },
+    merge: { email },
+    // Keyed on the address so a double submit does not send two welcomes.
+    dedupeKey: `newsletter-welcome:${email}`,
+  });
+}

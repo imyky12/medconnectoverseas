@@ -29,11 +29,15 @@ export const auth = async (req: Request, _res: Response, next: NextFunction): Pr
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, env.JWT_SECRET) as AuthPayload;
 
-    const account = await User.findById(decoded.userId).select('isActive');
+    const account = await User.findById(decoded.userId).select('isActive firstName lastName email');
     if (!account) throw new ApiError(401, 'This account no longer exists');
     if (!account.isActive) throw new ApiError(403, 'This account has been suspended');
 
     req.user = decoded;
+    // Snapshotted onto the request so the activity log can name the student
+    // without a second lookup on every write.
+    req.actorName = [account.firstName, account.lastName].filter(Boolean).join(' ').trim() || account.email;
+    req.actorEmail = account.email;
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {

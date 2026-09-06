@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, CalendarDays, BookOpen, Tag, Users, Wallet,
+  FileText, ScrollText, Newspaper,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import AppShell, { type NavGroup } from '../shell/AppShell';
@@ -67,11 +68,19 @@ export default function AdminLayout() {
       items: [
         { name: 'Events', path: '/admin/events', icon: CalendarDays },
         { name: 'Courses', path: '/admin/courses', icon: BookOpen },
+        { name: 'Newsletter', path: '/admin/newsletters', icon: Newspaper },
       ],
     },
     {
       label: 'People',
       items: [{ name: 'Students', path: '/admin/users', icon: Users }],
+    },
+    {
+      label: 'Site',
+      items: [
+        { name: 'Legal documents', path: '/admin/policies', icon: FileText },
+        { name: 'Activity', path: '/admin/activity', icon: ScrollText },
+      ],
     },
   ];
 

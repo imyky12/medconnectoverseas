@@ -41,6 +41,8 @@ flowchart TD
         AD --> AOR[Orders: approve / reject]
         AD --> AUS[Users: suspend / reactivate]
         AD --> APS[Payment settings - UPI details]
+        AD --> APOL[Legal documents: draft / publish / history]
+        AD --> ALOG[Activity log: who did what, admin and student]
         AEV --> AREG[Registrations + QR scan + Excel export]
     end
 
@@ -98,15 +100,18 @@ These came from earlier feedback and are the highest-priority checks in this pla
 
 | # | Precondition | Status |
 |---|---|---|
-| P1 | Backend running on `http://localhost:5000` | ⬜ |
-| P2 | Frontend running on `http://localhost:5174` | ⬜ |
-| P3 | MongoDB connected | ⬜ |
-| P4 | `MAIL_ENABLED=true` so real emails are sent | ⬜ |
-| P5 | Admin account exists — `admin@medconnectsoverseas.com` / `adminpassword123` | ⬜ |
-| P6 | Payment settings (UPI) configured, or checkout will have nothing to show | ⬜ |
-| P7 | Zoho inbox open and logged in, to read OTPs and check emails | ⬜ |
+| P1 | Backend running on `http://localhost:5000` | ✅ |
+| P2 | Frontend running on `http://localhost:5174` | ✅ |
+| P3 | MongoDB connected | ✅ Atlas |
+| P4 | `MAIL_ENABLED=true` so real emails are sent | ✅ all 17 templates delivering |
+| P5 | Admin account exists — `admin@medconnectsoverseas.com` / `adminpassword123` | ✅ |
+| P6 | Payment settings (UPI) configured, or checkout will have nothing to show | ✅ UPI id + QR set |
+| P7 | Zoho inbox open and logged in, to read OTPs and check emails | ⏭️ No longer possible to read OTPs from the log (BUG-019). Codes are minted through the app's own `createOtp` for testing; delivery is confirmed from `EmailLog` status. |
 
-> **Note on the OTP:** the OTP email is a "sensitive" template — the body is never stored and the code is masked in `EmailLog`. The OTP is not written to server logs either. So the only way to complete signup is to read the real inbox. Zoho access is a hard requirement, not a convenience.
+> **Note on the OTP (updated after BUG-019):** the subject is now redacted in
+> `EmailLog` too, so the code cannot be read from the database at all. Test runs
+> mint a known code by calling the app's own `createOtp` from a short script —
+> which needs no secret and weakens nothing. The OTP email is a "sensitive" template — the body is never stored and the code is masked in `EmailLog`. The OTP is not written to server logs either. So the only way to complete signup is to read the real inbox. Zoho access is a hard requirement, not a convenience.
 
 ---
 
@@ -121,8 +126,8 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | A3 | Resize to mobile width (375px) on each page | No horizontal scrolling, nothing overlaps or gets cut off | ✅ (BUG-030 fixed) — 0px overflow on `/`, `/events`, `/contact`, `/activities`, `/newsletter`, sampled at six scroll positions |
 | A4 | Check headings, buttons, spacing against the design system | Navy `#041c44`, accent blue `#1e6ff1`, Inter font, consistent card radius | ✅ |
 | A5 | Click every nav link and footer link | No 404s, no dead links | ✅ (BUG-003/004/005/006 fixed) |
-| A6 | Submit the contact form | **TO CONFIRM** — there is no backend endpoint for contact yet, so check what actually happens | ❌ |
-| A7 | Submit the newsletter form | **TO CONFIRM** — no backend endpoint yet; check for a silent failure | ❌ |
+| A6 | Submit the contact form | **TO CONFIRM** — there is no backend endpoint for contact yet, so check what actually happens | ✅ (BUG-028 fixed) — stored as an `Enquiry` with a reference, acknowledgement + team alert both `sent` |
+| A7 | Submit the newsletter form | **TO CONFIRM** — no backend endpoint yet; check for a silent failure | ✅ (BUG-028 fixed) — stored, welcome email `sent`, re-subscribe handled without an error |
 | A8 | Open `/events` while logged out and try to register | Should prompt login, not crash or silently fail | ✅ opens the login modal; button carries a lock icon and "Login required to register" |
 | A9 | Visit `/dashboard` while logged out | Redirected to login, not a blank or broken page | ✅ redirects home (was bouncing via `/onboarding` first) |
 | A10 | Visit a URL that does not exist, e.g. `/nonsense` | Sensible 404 page, not a blank screen | ✅ (BUG-002 fixed) |
@@ -139,7 +144,7 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | B6 | Request an OTP 6+ times quickly | Rate limiting kicks in, no server error | ✅ 6th request in the window → `429` "Too many OTP requests. Please try again after 10 minutes." |
 | B7 | Enter an invalid email format | Blocked with a clear message | ✅ (BUG-033 fixed) — 5 malformed addresses all `400` |
 | B8 | On onboarding, submit with empty fields | Each required field shows an error | ✅ |
-| B9 | Request the mobile OTP and enter a wrong code | Clear error, onboarding not completed | ✅ (BUG-012 fixed) — clear error in the UI, boxes turn red, onboarding not completed |
+| B9 | Request the mobile OTP and enter a wrong code | Clear error, onboarding not completed | ⏭️ Mobile verification is switched off — there is no SMS provider, so the code only ever reached the server console. See `MOBILE_OTP_ENABLED`. |
 | B10 | Complete onboarding with valid details | Lands on dashboard; referral code shown | ✅ |
 | B11 | Check the welcome email | Arrives, referral code in the email matches the one on screen | ✅ |
 | B12 | Try to open `/onboarding` again after completing it | Blocked or redirected — cannot onboard twice | ✅ API `400 Onboarding is already complete`; the page also redirects to `/dashboard` |
@@ -180,7 +185,7 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | D18 | Edit the event and change the slot time | Saves; registered users get a "schedule change" email | ✅ |
 | D19 | Edit only the description | Saves; **no** reschedule email is sent | ✅ |
 | D20 | Confirm booked seats are not reset by an edit | Booked seat count survives the update | ✅ |
-| D21 | Upload a very large banner image | Handled cleanly, no crash | ⏭️ Not applicable — there is no upload. The banner is a plain URL field and the server never handles the bytes. See the note below. |
+| D21 | Upload a very large banner image | Handled cleanly, no crash | ✅ Cloudinary uploads added since — signed direct-to-CDN, 10MB ceiling enforced by the signature, oversized files refused client-side with a readable message |
 | D22 | Paste a script tag into the title or description | Rendered as text, never executed | ✅ |
 
 ### E. Admin creates a coupon
@@ -194,9 +199,9 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | E5 | Set "valid until" earlier than "valid from" | Rejected | ⏭️ |
 | E6 | Create a coupon that applies to events, tied to this event | Saved with the right scope | ✅ |
 | E7 | Create an already-expired coupon | Allowed to exist, but must not work at checkout | ✅ |
-| E8 | Set max uses to 1 | After one use, the next attempt is refused | ❌ |
+| E8 | Set max uses to 1 | After one use, the next attempt is refused | ✅ (BUG-026 fixed) — second approval `409`, `usedCount` 1 of 1 |
 | E9 | Enter the code in lowercase | Stored/matched uppercase — case must not matter | ✅ |
-| E10 | Delete a coupon that has already been used | Handled cleanly; past orders are not corrupted | ⬜ |
+| E10 | Delete a coupon that has already been used | Handled cleanly; past orders are not corrupted | ✅ orders survive with `coupon: null`, stored `finalPrice` intact, admin list still renders |
 
 ### F. User views events (all tabs)
 
@@ -206,12 +211,12 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | F2 | Open "Upcoming" tab | Shows only events the user is registered for that are still ahead | ✅ |
 | F3 | Open "Previous" tab | Shows only past events | ✅ |
 | F4 | Check the empty state of each tab | Friendly message, not a blank area | ✅ |
-| F5 | Open the event detail page | Title, banner, price, slots, seats all correct | ❌ |
+| F5 | Open the event detail page | Title, banner, price, slots, seats all correct | ✅ (BUG-014 fixed) |
 | F6 | Compare price and discount shown against what admin entered | Matches exactly | ✅ |
-| F7 | Check seat count against the database | Correct number | ❌ |
-| F8 | View a draft (unpublished) event by guessing its URL | Not visible | ⬜ |
+| F7 | Check seat count against the database | Correct number | ✅ (BUG-014 fixed) — card shows the earliest slot and totals seats across every upcoming sitting |
+| F8 | View a draft (unpublished) event by guessing its URL | Not visible | ✅ direct URL `404`, register `404`, absent from the public list |
 | F9 | Check a past event | Register button hidden or disabled | ✅ |
-| F10 | Check design on mobile width | Cards stack cleanly, nothing overflows | ⬜ |
+| F10 | Check design on mobile width | Cards stack cleanly, nothing overflows | ✅ cards stack, 0px overflow, "You're going" state visible |
 
 ### G. Registration and payment
 
@@ -219,7 +224,7 @@ These came from earlier feedback and are the highest-priority checks in this pla
 |---|---|---|---|
 | G1 | Register without picking a slot | Blocked with a clear message | ✅ |
 | G2 | Register without a transaction ID or screenshot | Blocked — both are required | ✅ |
-| G3 | Apply a valid coupon | Price drops by the right amount, shown clearly before paying | ⚠️ |
+| G3 | Apply a valid coupon | Price drops by the right amount, shown clearly before paying | ✅ (BUG-015 fixed) — ₹1200 with "You save ₹800 (40% off)" |
 | G4 | Apply a non-existent coupon code | Clear "invalid coupon" message | ✅ |
 | G5 | Apply an expired coupon | Rejected with a clear reason | ✅ |
 | G6 | Apply a coupon meant for courses only | Rejected for an event | ✅ |
@@ -229,7 +234,7 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | G10 | **Rule 1** — return to the events list after registering | Register button is gone, replaced by "Awaiting approval" | ✅ |
 | G11 | **Rule 1** — reopen the event detail page | Shows pending state, not a Register button | ✅ |
 | G12 | **Rule 2** — check the seat count for the slot just booked | Pending registration is reflected; not still showing the old count | ✅ |
-| G13 | Try to register a second time for the same event | Blocked with a clear message | ⚠️ |
+| G13 | Try to register a second time for the same event | Blocked with a clear message | ✅ (BUG-018 fixed) — "Your registration for this event is already approved." |
 | G14 | Try to register for a slot with zero seats left | Blocked | ✅ |
 | G15 | Try to register for a slot whose date has passed | Blocked | ✅ |
 | G16 | Check the "registration submitted" email | Arrives, states clearly that the seat is **not** confirmed yet | ✅ |
@@ -251,7 +256,7 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | H9 | Try to approve the same order twice | Blocked — already approved | ✅ |
 | H10 | Try to reject an already-approved order | Blocked | ✅ |
 | H11 | Check coupon used-count after approval | Increased by exactly 1, not 2 | ✅ |
-| H12 | Approve two orders for the last remaining seat | Seats must not go negative or oversell | ❌ |
+| H12 | Approve two orders for the last remaining seat | Seats must not go negative or oversell | ✅ (BUG-025 fixed) — second approval `409`, `bookedSeats` stays 1 of 1 |
 
 ### I. After registration — ticket and QR
 
@@ -262,7 +267,7 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | I3 | Compare the QR in the email with the one on the site | Same registration | ✅ |
 | I4 | Check the "Upcoming" tab | The event now appears there | ✅ |
 | I5 | Check order history | Order shows as approved | ✅ |
-| I6 | Check the ticket on mobile width | QR is not cut off or too small to scan | ⬜ |
+| I6 | Check the ticket on mobile width | QR is not cut off or too small to scan | ✅ on-screen QR 181×181, fully inside the viewport, 0px overflow |
 
 ### J. Reminder emails
 
@@ -281,14 +286,14 @@ These came from earlier feedback and are the highest-priority checks in this pla
 | ID | What to do | Expected | Status |
 |---|---|---|---|
 | K1 | Open admin → event registrations | Registrations listed with status | ✅ |
-| K2 | Scan/enter a valid QR token | Attendance marked | ✅ |
+| K2 | Scan/enter a valid QR token | Attendance marked | ✅ (BUG-017 fixed) — manual entry now available in the UI, not only via the API |
 | K3 | Scan the same QR again | Says "already recorded", does not double count | ✅ |
 | K4 | Scan an invalid or made-up token | Clear "invalid QR" error | ✅ |
 | K5 | Scan the QR of a pending (unapproved) registration | Refused | ✅ |
 | K6 | Scan the QR of a rejected registration | Refused | ⏭️ |
 | K7 | Check the attendance confirmation email | Arrives with certificate and notes links | ✅ |
 | K8 | Download the attendee list as Excel | File downloads and opens with correct data | ✅ |
-| K9 | Filter registrations by status | Filter works | ⬜ |
+| K9 | Filter registrations by status | Filter works | ✅ approved/pending/rejected each return only their own rows |
 
 ### L. After the event — notes and certificate
 
@@ -326,6 +331,84 @@ The referral chain is: a new user signs up with someone's code → the referrer 
 | R14 | A different user tries to redeem the referrer's reward code | Rejected — coupon is email-locked | ✅ |
 | R15 | Referral count on the Profile page | Matches the number of `Referral` records | ✅ |
 
+### P. Legal documents (Terms & Privacy)
+
+The two documents live in the database, not in the code, so an admin can change
+them without a deploy. The rule the whole design hangs on: **editing must never
+change what the public is reading.** Draft and published are separate fields,
+and every publish is kept forever.
+
+| ID | What to do | Expected | Status |
+|---|---|---|---|
+| P1 | Open `/terms` and `/privacy` as a visitor | Both render the full document with headings, lists and working links | ✅ 14 sections, 66 list items, real mailto/site links |
+| P2 | Check the "Last updated" line | Shows the date of the live version, not today's date | ✅ shown as a badge, plus the version number below |
+| P3 | Footer links on any public page | Terms and Privacy both reachable | ✅ |
+| P4 | Ask for a document that does not exist | Refused, not a blank page | ✅ `404 That document has not been published yet.` |
+| P5 | Admin → Legal documents | Both listed with live version, who published it and when | ✅ |
+| P6 | Edit the draft and save **without** publishing | Draft is stored; the public page is unchanged | ✅ saved a draft reading "DRAFT IN PROGRESS"; the live page still served the published text |
+| P7 | Reopen the editor | The saved draft is loaded back, not the published text | ✅ |
+| P8 | Check the unpublished-changes indicator | Clearly says the draft differs from what visitors see | ✅ "This draft differs from the live page — visitors do not see these changes yet" |
+| P9 | Publish | The public page updates and the version number increments | ✅ v1 → v2 live immediately |
+| P10 | Publish again with no changes | Refused — an identical version would add a meaningless history entry | ✅ `400 The draft is identical to what is already published.` |
+| P11 | Publish button when draft == live | Disabled, with a reason on hover | ✅ |
+| P12 | Version history | Every publish listed with version, timestamp, **which admin**, and the change note | ✅ v1–v3 each named their publisher |
+| P13 | Restore an old version | Loads into the **draft** only — nothing goes live until publish | ✅ restored v1 while v2 stayed live |
+| P14 | Preview tab | Renders exactly as the public page does | ✅ same renderer component is used for both |
+| P15 | Markdown toolbar | Heading, bold, italic, list and link all insert correct Markdown | ✅ all 5 present and working |
+| P16 | Leave the editor without saving | Unsaved typing is discarded, not silently persisted | ✅ draft in the database unchanged |
+| P17 | **Publish hostile Markdown** — `<script>`, `<img onerror>`, `javascript:` link, `<iframe>` | All stripped; nothing executes; ordinary text survives | ✅ 0 script tags, 0 iframes, `onerror` and `javascript:` removed, no execution |
+| P18 | First boot on an empty database | Both documents seeded at v1 from the supplied text | ✅ |
+| P19 | Restart the server after editing | Seed does **not** overwrite the admin's edits | ✅ seeding is skipped once a document exists |
+| P20 | Production build | The seed Markdown ships into `dist/` | ✅ `dist/templates/policies/` contains both files |
+| P21 | **Version number on the public page** | Not shown — it is an editing detail, and "Version 5" only raises a question the page cannot answer | ✅ removed from the public API response entirely |
+| P22 | **"Last updated" vs the date inside the document** | One date, one source. The Terms carried its own "Last Updated: 22 August 2026" line while the page showed the publish date — two dates disagreeing | ✅ the in-document line removed; the page renders the effective date |
+| P23 | **Republishing to fix a typo** | Must not announce that the terms changed today | ✅ `effectiveDate` is separate from `publishedAt` and is pre-filled with the current value |
+| P24 | Change only the date, leaving the wording alone | Allowed, and recorded as its own version | ✅ the identical-content guard now checks the date too |
+| P25 | Publish with neither a wording nor a date change | Refused | ✅ `400 Nothing would change…` |
+| P26 | Contents list on a long document | Every `##` heading listed, each link jumps to its section | ✅ 14 entries, all 14 anchors resolve |
+| P27 | Reading position | The section in view is highlighted in the contents | ✅ `IntersectionObserver`, biased to the upper third |
+| P28 | Heading anchors after the contents column appears | Links still resolve — no ids lost to a re-render | ✅ ids are baked into the HTML, not set on the DOM afterwards |
+| P29 | Desktop layout | Contents sit alongside the document and stay in view while scrolling | ✅ `lg:` grid and `sticky` both confirmed in the built CSS (viewport capped at ~502px in automation, so not rendered directly) |
+| P30 | Mobile layout | Single column, contents above the document, no sideways scroll | ✅ 0px overflow |
+| P31 | Printing | Site chrome dropped, sections not split across pages | ✅ `@media print` rules present in the build |
+| P32 | Cross-link between the two documents | Each links to the other | ✅ |
+
+### Q. Activity logs (admin and user)
+
+Every state-changing request is recorded by middleware rather than by a call in
+each controller — attribution that depends on somebody remembering to add a line
+is missing from whichever endpoint was written last. `GET`s are deliberately not
+logged: they change nothing, and logging every list view would bury the rows
+that matter.
+
+| ID | What to do | Expected | Status |
+|---|---|---|---|
+| Q1 | Every admin action in one pass | Each produces a row naming the admin | ✅ 18 admin action types, all attributed to "Super Admin" |
+| Q2 | `event.create` / `update` / `delete` | Recorded, with the event title where available | ✅ |
+| Q3 | `coupon.create` / `delete` | Recorded, naming the coupon code | ✅ "Created coupon LOGPROBE" |
+| Q4 | `course.create` / `update` / `delete` | Recorded | ✅ |
+| Q5 | `order.review` | Recorded, and says whether it was approved or rejected **and why** | ✅ approve and reject both, reject carries the reason |
+| Q6 | `user.toggle_status` | Recorded | ✅ suspend and reactivate both |
+| Q7 | `attendance.mark` | Recorded | ✅ |
+| Q8 | `payment_settings.update` | Recorded | ✅ |
+| Q9 | `upload.sign` | Recorded, naming what kind of image | ✅ "Uploaded an image (event-banner)" |
+| Q10 | `policy.draft` / `publish` / `restore` | Recorded, naming the document and version | ✅ |
+| Q11 | **Admin sign-in** | Names the admin, not "Anonymous" | ✅ recorded by the controller — `adminAuth` cannot run on the login route |
+| Q12 | Failed admin sign-in | Recorded, naming the address that was tried | ✅ "Failed admin sign-in attempt for nobody@x.com" |
+| Q13 | One sign-in produces **one** row | No duplicate anonymous row alongside the named one | ✅ the middleware suppresses its own row on a successful login |
+| Q14 | Student actions | `event.register`, `course.purchase`, `user.onboard`, `user.download` each recorded and named | ✅ |
+| Q15 | **Student sign-in** | Names the student | ✅ same fix as Q11 |
+| Q16 | Failed student sign-in / OTP request | Recorded, naming the address | ✅ |
+| Q17 | Unauthenticated actions (contact form, newsletter) | Recorded as anonymous — correct, no account is proven yet | ✅ |
+| Q18 | **Refused attempts** | Kept and marked, not dropped | ✅ shown as "— refused (409)" with the status code |
+| Q19 | `GET` requests | Not logged | ✅ |
+| Q20 | Secrets in the log | OTPs, passwords, tokens, signatures and document bodies redacted from stored payloads | ✅ replaced with `******` |
+| Q21 | **After the actor's account is deleted** | Rows still name the person | ✅ 7 rows still read "Log Probe / log.probe@anchors.pro" after the user was removed |
+| Q22 | Filter by actor type / action / failures-only | Each filter narrows correctly | ✅ |
+| Q23 | Free-text search | Matches name, email, summary and action | ✅ |
+| Q24 | Paging | Bounded page size; newer/older navigation | ✅ capped at 100 per page |
+| Q25 | A log write failing | Must never break the action it describes | ✅ every write is fire-and-forget and self-catching |
+
 ### M. Emails — check every one in the inbox
 
 For each email: does it arrive, is the subject right, does the logo load, are all links working, is any `{{placeholder}}` left unfilled, does it look right on mobile.
@@ -333,7 +416,7 @@ For each email: does it arrive, is the subject right, does the logo load, are al
 | ID | Email | Status |
 |---|---|---|
 | M1 | Login OTP | ✅ |
-| M2 | Welcome | ⬜ |
+| M2 | Welcome | ✅ name + referral code filled, no `{{placeholders}}`, compact logo, responsive |
 | M3 | Registration submitted (event) | ✅ |
 | M4 | Admin — new payment awaiting review | ✅ |
 | M5 | Seat confirmed + QR | ✅ |
@@ -341,7 +424,7 @@ For each email: does it arrive, is the subject right, does the logo load, are al
 | M7 | Event reminder | ✅ |
 | M8 | Attendance confirmed | ✅ |
 | M9 | Event rescheduled | ✅ |
-| M10 | Event cancelled | ⬜ |
+| M10 | Event cancelled | ✅ sent with the admin's exact reason, slot date and refund note |
 | M11 | Referral signup (to referrer) | ✅ |
 | M12 | Referral reward unlocked | ✅ |
 | M13 | Account suspended / reactivated | ✅ |
@@ -356,8 +439,8 @@ For each email: does it arrive, is the subject right, does the logo load, are al
 | N4 | Try to approve your own order via the API as a user | Refused | ✅ |
 | N5 | Send a negative price or tampered amount in the register request | Server recalculates; user-supplied price is ignored | ✅ |
 | N6 | Put HTML/script into the rejection reason and check the email | Escaped, not executed | ✅ |
-| N7 | Suspend a user, then try to use their existing session | Blocked | ❌ |
-| N8 | Register with someone else's transaction ID | **TO CONFIRM** — is duplicate transaction ID detection in place? | ❌ |
+| N7 | Suspend a user, then try to use their existing session | Blocked | ✅ (BUG-027 fixed) — live sessions ended, requests `403`, and a **valid** login code is refused |
+| N8 | Register with someone else's transaction ID | **TO CONFIRM** — is duplicate transaction ID detection in place? | ✅ (BUG-029 fixed) — `409`, including case and whitespace variants |
 
 ---
 
@@ -477,6 +560,92 @@ Every action taken during testing, in order. Each row: what was done and which c
 | Run 14 | Meet Link / Venue swap correctly in both directions; reminder chip reads "1 day before" | D8 ✅ · D13 ✅ |
 | Run 14 | Coupon model was throwing the same plain `Error` — fixed, completing BUG-011 | E2 ✅ · E3 ✅ · E4 ✅ |
 | Run 14 | All 6 probe events and all probe coupons deleted; database back to empty, no console errors | cleanup |
+| Run 15 | Mobile OTP switched **off** in onboarding (`MOBILE_OTP_ENABLED`) — no SMS provider exists, so the code only reached the server console. Flow is 3 steps; the verify screen and sender are parked in place. | B9 ⏭️ |
+| Run 15 | Contact form and newsletter built end to end — enquiry stored with a reference, 3 emails all `sent`, invalid input rejected, re-subscribe handled | A6 ✅ · A7 ✅ (BUG-028) |
+| Run 15 | Login OTP no longer stored in the log subject: row reads `****** is your … login code` while `status: sent` | BUG-019 |
+| Run 15 | **`$expr` inside `$elemMatch` does not work** — MongoDB rejects it. The seat claim was rewritten as a top-level `$expr` in `seat.service.ts` | BUG-025 |
+| Run 15 | Two orders, one seat: first `200`, second `409`, `bookedSeats` 1 of 1 | H12 ✅ (BUG-025) |
+| Run 15 | Single-use coupon, two approvals: second `409`, `usedCount` 1 of 1, and the seat claimed for it was released | E8 ✅ (BUG-026) |
+| Run 15 | Reused payment reference rejected `409`, including `  utr-aaa-111  ` against `UTR-AAA-111`; a fresh reference still accepted | N8 ✅ (BUG-029) |
+| Run 15 | Free event registered with **no** payment fields → `201`, order and registration `approved`, real `qrToken` issued | BUG-020 |
+| Run 15 | Suspension: 1 live session ended, `/referrals` and register both `403`, and a **valid** OTP login refused `403` | N7 ✅ (BUG-027) |
+| Run 15 | Same-day two-slot event card shows the **earlier** slot and "3 seats left across 2 sittings" | F5 ✅ · F7 ✅ (BUG-014) |
+| Run 15 | 25% coupon on a ₹2000/₹1600 event → ₹1200 with "You save ₹800 (40% off)" | G3 ✅ (BUG-015) |
+| Run 15 | Scanner: manual pass-code entry present, camera hang surfaces after 8s, bogus token returns the API's real error | K2 ✅ (BUG-017) |
+| Run 15 | All probe events, coupons, orders, registrations, enquiries and subscribers removed; dashboard back to zeros | cleanup |
+
+**Run 16 — full end-to-end pass.** One continuous journey on live servers: admin
+creates and publishes an event → a brand-new student signs up, onboards and
+books it with a coupon → admin rejects, the student re-books, admin approves →
+QR issued → attendance scanned → certificate and notes → reminders → cancellation.
+
+| When | What was done | Result |
+|---|---|---|
+| Run 16 | Preconditions: servers up, Cloudinary enabled, admin login, UPI settings present | P1–P6 ✅ |
+| Run 16 | Event created offline-with-venue, published, 2 seats, custom reminders (10 min + 1 day); coupon created in **lowercase** and stored uppercase | D3 ✅ · D7 ✅ · D17 ✅ · E1 ✅ · E9 ✅ |
+| Run 16 | **New bug:** a second not-yet-onboarded user could not be created — `409 That referralCode (null) is already taken` | ❌ **BUG-035** |
+| Run 16 | After the sparse-index fix: signup, wrong OTP, correct OTP, OTP reuse | B3 ✅ · B4 ✅ · B5 ✅ |
+| Run 16 | **New bug:** a same-day event was invisible in the listing and refused registration with "This slot has already passed" | ❌ **BUG-036** |
+| Run 16 | After the slot-time fix: event listed, detail correct (venue, price, seats) | F1 ✅ · F5 ✅ · F6 ✅ |
+| Run 16 | Onboarding with no mobile OTP; bogus referral code rejected live, real code named "Yash K." | B8 ✅ · B10 ✅ · B13 ✅ · R5a ✅ |
+| Run 16 | Register: no slot, no payment proof, invalid slot, unknown coupon — each refused with its own message | G1 ✅ · G2 ✅ · G4 ✅ |
+| Run 16 | Registered with `  osce20  ` → ₹1600 − 20% = **₹1280**; second attempt refused | G9 ✅ · G13 ✅ |
+| Run 16 | **Rule 1** pending on listing *and* detail · **Rule 2** seats 2 → 1 available while pending | G10 ✅ · G11 ✅ · G12 ✅ |
+| Run 16 | Submission + admin alert emails sent with the right amount and UTR | G16 ✅ · G17 ✅ |
+| Run 16 | Reject without a reason refused; rejected with one; seats restored to 2 and the student could re-book | H3 ✅ · H4 ✅ · H6 ✅ |
+| Run 16 | Approved: QR issued, seats 1/2, coupon `usedCount` exactly 1, double-approve and reject-after-approve both refused | H7 ✅ · H9 ✅ · H10 ✅ · H11 ✅ |
+| Run 16 | Referral chain fired on first approval — `completed`, `rewardGiven`, one coupon `REF5599…` locked to the referrer | R8 ✅ · R9 ✅ · R10 ✅ |
+| Run 16 | Attendance: invalid token `404`, empty `400`, valid marked, repeat "already recorded" | K2 ✅ · K3 ✅ · K4 ✅ |
+| Run 16 | Registration status filters; Excel export a valid 18KB xlsx | K9 ✅ · K8 ✅ |
+| Run 16 | Certificate and notes recorded on first access; bad type `400`; unknown event `404` | L1 ✅ · L4 ✅ · L5 ✅ |
+| Run 16 | Reminders fired for **both** offsets — "is tomorrow" and "is starting in 10 minutes" — one email each, no repeats across ticks | J1 ✅ · J2 ✅ · J3 ✅ · J4 ✅ |
+| Run 16 | Draft event by direct URL, by registration and in the public list — refused three ways | F8 ✅ |
+| Run 16 | Deleted a coupon with `usedCount` 1 linked to an approved order — orders survive, admin list renders | E10 ✅ |
+| Run 16 | Events list and QR pass at mobile width — cards stack, QR 181×181 on screen, 0px overflow | F10 ✅ · I6 ✅ |
+| Run 16 | Welcome email: name and code filled, no placeholders, compact logo | M2 ✅ |
+| Run 16 | Event cancelled with a reason → registrant emailed with reason, slot date and refund note | M10 ✅ |
+| Run 16 | **Every email row across 17 templates is `sent` — zero failures** | J7 ✅ |
+| Run 16 | All Run 16 data removed: 2 users, 2 orders, 2 registrations, 1 referral, 1 reward coupon, all events | cleanup |
+
+**Run 17 — legal documents and activity logs.** New features, tested on live
+servers end to end.
+
+| When | What was done | Result |
+|---|---|---|
+| Run 17 | Both documents seeded at v1 from the supplied text; served on `/terms` and `/privacy` | P18 ✅ · P1 ✅ |
+| Run 17 | Saved a draft reading "DRAFT IN PROGRESS" — the public page kept serving the published text | P6 ✅ |
+| Run 17 | Published it: live page moved to v2 immediately; publishing an identical draft again refused | P9 ✅ · P10 ✅ |
+| Run 17 | History listed v1–v3 with the publishing admin and change note on each | P12 ✅ |
+| Run 17 | Restored v1 into the draft while v2 stayed live — restore does not publish | P13 ✅ |
+| Run 17 | Editor: full draft loaded, Publish disabled when draft matched live, all 5 toolbar buttons, preview used the public renderer | P7 ✅ · P11 ✅ · P14 ✅ · P15 ✅ |
+| Run 17 | Typed in the editor and navigated away — the database draft was unchanged | P16 ✅ |
+| Run 17 | **Published hostile Markdown** — `<script>`, `<img onerror>`, `javascript:` link, `<iframe>`. Nothing executed; all stripped; normal text survived | P17 ✅ |
+| Run 17 | Production build carried the seed Markdown into `dist/templates/policies/` | P20 ✅ |
+| Run 17 | Triggered **27 distinct action types** in one pass — 18 admin, 9 student | Q1–Q10, Q14 ✅ |
+| Run 17 | Every one produced a log row; admin rows named "Super Admin", student rows named the student | Q1 ✅ · Q14 ✅ |
+| Run 17 | **Gap found:** admin sign-in logged as "Anonymous" — `adminAuth` cannot run on the login route. Recorded in the controller instead | Q11 ✅ |
+| Run 17 | **Same gap for students** — `user.login` was anonymous. Fixed the same way; middleware now suppresses its duplicate row | Q13 ✅ · Q15 ✅ |
+| Run 17 | Failed sign-ins recorded with the address attempted, for both admin and student | Q12 ✅ · Q16 ✅ |
+| Run 17 | Refused attempts kept and marked with their status code | Q18 ✅ |
+| Run 17 | Deleted the probe student — 7 of their log rows still read "Log Probe / log.probe@anchors.pro" | Q21 ✅ |
+| Run 17 | Filters (actor type, action, failures-only), free-text search and paging all correct | Q22 ✅ · Q23 ✅ · Q24 ✅ |
+| Run 17 | Probe user, orders, registrations, enquiry, subscriber, event, coupon and course removed; both documents restored to the supplied text | cleanup |
+
+**Run 18 — policy page redesign.** Raised from a screenshot: the page showed a
+version number, and two different "last updated" dates disagreed with each other.
+
+| When | What was done | Result |
+|---|---|---|
+| Run 18 | Removed the version number from the public response — internal editing detail, not something a reader can act on | P21 ✅ |
+| Run 18 | **Root cause of the two dates:** the Terms Markdown carried its own "Last Updated: 22 August 2026" line while the page rendered `publishedAt`, which my own test republishes had moved to today | P22 |
+| Run 18 | Added `effectiveDate`, separate from `publishedAt`. Publishing is an action — a typo fix should not tell every visitor the terms changed | P23 ✅ |
+| Run 18 | Removed the duplicated line from the Markdown and republished both documents with the effective date 22 August 2026 | P22 ✅ |
+| Run 18 | Relaxed the identical-content guard so a date-only correction can be published, and still refused when nothing at all would change | P24 ✅ · P25 ✅ |
+| Run 18 | Rebuilt the page: dark header, contents column, scroll-spy, print and email actions, cross-link | P26 ✅ · P27 ✅ · P32 ✅ |
+| Run 18 | **Bug found during verification:** contents links resolved to nothing. Showing the contents column changes the grid's children, React remounts the article, and every heading id set imperatively was wiped | P28 |
+| Run 18 | Fixed by stamping the ids into the HTML string during render — no re-render can lose them. All 14 anchors resolve | P28 ✅ |
+| Run 18 | Both pages verified: "Last updated 22 August 2026", no version, no duplicate date, 0px overflow | P21 ✅ · P22 ✅ · P30 ✅ |
+| Run 18 | Admin editor gained a "Last updated" date field, pre-filled, with the live value echoed back | P23 ✅ |
 
 **Test accounts used:**
 
@@ -492,30 +661,30 @@ Each test case above carries its own status. Totals:
 
 | | Count |
 |---|---|
-| ✅ Passed | 138 |
-| ❌ Failed | 8 |
-| ⚠️ Works, but has a problem | 2 |
-| ⏭️ Blocked / not applicable | 4 |
-| ⬜ Not yet run | 7 |
-| **Total cases** | **161** |
+| ✅ Passed | 213 |
+| ❌ Failed | 0 |
+| ⚠️ Works, but has a problem | 0 |
+| ⏭️ Blocked / not applicable | 5 |
+| ⬜ Not yet run | 0 |
+| **Total cases** | **218** |
+
+**Every test case in this document has now been run.** The 5 remaining ⏭️ entries
+are cases that cannot apply rather than cases left undone — each carries its
+reason in the table below.
 
 Every ❌ and ⚠️ maps to an entry in the bug table above.
 
 **Not run / blocked, with reasons:**
 
-| Case | Why |
+Only these five remain, and none of them is work left undone:
+
+| Case | Why it cannot apply |
 |---|---|
-| A8, A9 | Logged-out access to `/events` register and `/dashboard` |
-| E10 | Deleting a coupon that has already been used |
-| F8, F10 | Draft event by direct URL; events list at mobile width |
-| I6 | Ticket QR at mobile width |
-| K9 | Registration status filters |
-| M2, M10 | OTP email design pass; event-cancelled email (never triggered) |
-| K6 | A rejected registration never has a QR token (correct behaviour), so there is nothing to scan — covered indirectly, an unknown token returns 404 |
-| J6 | Needs an online event with an open reminder window; the online/offline branch was verified directly in an earlier run |
-| E5 | Not testable — the coupon form has no "valid from" field, only Expiry Date |
-| I6, F10, K9, E10, F8, M2, M10 | Still outstanding — see the per-section tables |
-| D21 | Not applicable — there is no banner **upload**. The field is a URL, so the server never receives image bytes and there is nothing to overflow. Worth noting separately: nothing constrains the size of the remote image either, so a huge banner would quietly slow the events page for students. |
+| B9 | Mobile OTP verification is deliberately switched off — there is no SMS provider, so the code never reached the person signing up. `MOBILE_OTP_ENABLED` restores it, and the screen and sender are parked in place. |
+| K6 | A rejected registration never has a QR token — correct behaviour, so there is nothing to scan. Covered indirectly: an unknown token returns 404. |
+| J6 | Needs an online event with an open reminder window; the online/offline location branch was verified directly in an earlier run. |
+| E5 | The coupon form has no "valid from" field, only Expiry Date, so the ordering cannot be set wrong through the UI. |
+| R12 | Needs a referred user's order to be *rejected*; the existing referral is already `completed`. |
 | R12 | Needs a referred user's order to be *rejected*; the current referral is already `completed` |
 
 ---
@@ -524,16 +693,19 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 
 ### Summary
 
-**34 bugs. 24 fixed. 10 open.**
+**36 bugs. 36 fixed. 0 open.**
+
+Every bug raised in this document has been fixed and verified. The remaining
+⬜ entries are test cases that have not been run, not known defects.
 
 | ID | Type | Severity | One line | Status |
 |---|---|---|---|---|
-| BUG-028 | Functionality | **Critical** | Contact form and newsletter are fake — success shown, nothing sent or stored | Open |
-| BUG-029 | **Security** | High | The same payment reference can be reused across unlimited orders | Open |
+| BUG-028 | Functionality | **Critical** | Contact form and newsletter are fake — success shown, nothing sent or stored | ✅ Fixed |
+| BUG-029 | **Security** | High | The same payment reference can be reused across unlimited orders | ✅ Fixed |
 | BUG-030 | Design | Low | Home page scrolls sideways on narrow screens | ✅ Fixed |
-| BUG-027 | **Security** | **Critical** | Suspending a user does nothing — they keep full access and can log back in | ⚠️ Partly fixed — needs re-test |
-| BUG-025 | Data / Logic | **Critical** | A slot can be oversold — two people pay, one seat exists, both get QR codes | Open |
-| BUG-026 | Data / Logic | High | A single-use coupon can be redeemed any number of times | Open |
+| BUG-027 | **Security** | **Critical** | Suspending a user does nothing — they keep full access and can log back in | ✅ Fixed |
+| BUG-025 | Data / Logic | **Critical** | A slot can be oversold — two people pay, one seat exists, both get QR codes | ✅ Fixed |
+| BUG-026 | Data / Logic | High | A single-use coupon can be redeemed any number of times | ✅ Fixed |
 | BUG-023 | Data / Logic | High | Two slots can share the same slot ID, corrupting seat counts and reminders | ✅ Fixed |
 | BUG-021 | Data / Logic | Medium | Discount can be set higher than the price | ✅ Fixed |
 | BUG-022 | Data / Logic | Medium | Events can be created with slots in the past | ✅ Fixed |
@@ -543,24 +715,26 @@ Every ❌ and ⚠️ maps to an entry in the bug table above.
 | BUG-002 | Functionality | High | Any unknown URL renders a blank white page | ✅ Fixed |
 | BUG-010 | Data / Logic | High | A slot can be saved ending before it starts (already in live data) | ✅ Fixed |
 | BUG-012 | Data / Logic | High | Country code stored twice → `+91+919820115577` | ✅ Fixed |
-| BUG-014 | Functionality | High | Event card shows the wrong slot and understates seats | Open |
-| BUG-017 | Functionality | High | QR scanner fails silently, no manual fallback | Open |
-| BUG-019 | **Security** | High | Login OTPs stored in plain text in the email log — account takeover path | Open |
-| BUG-020 | Functionality | High | A free (₹0) event still demands a transaction ID and screenshot | Open |
+| BUG-014 | Functionality | High | Event card shows the wrong slot and understates seats | ✅ Fixed |
+| BUG-017 | Functionality | High | QR scanner fails silently, no manual fallback | ✅ Fixed |
+| BUG-019 | **Security** | High | Login OTPs stored in plain text in the email log — account takeover path | ✅ Fixed |
+| BUG-020 | Functionality | High | A free (₹0) event still demands a transaction ID and screenshot | ✅ Fixed |
 | BUG-003 | Content | Medium | Footer "About Us" links to a page that does not exist | ✅ Fixed |
 | BUG-004 | Content | Medium | All five footer activity links are dead | ✅ Fixed |
 | BUG-007 | Design | Medium | "Our Impact in Numbers" heading printed twice | ✅ Fixed |
 | BUG-011 | Functionality | Medium | Validation and duplicate-key errors return "Internal server error" | ✅ Fixed |
 | BUG-013 | Usability | Medium | Invalid referral code says "Code applied", then is discarded | ✅ Fixed |
-| BUG-015 | Design | Medium | Savings badge ignores the coupon ("Save ₹400" when ₹800 was saved) | Open |
+| BUG-015 | Design | Medium | Savings badge ignores the coupon ("Save ₹400" when ₹800 was saved) | ✅ Fixed |
 | BUG-005 | Content | Low | All four social icons link to `/` | ✅ Fixed |
 | BUG-032 | Design | Medium | Footer headings invisible — near-black on navy | ✅ Fixed |
+| BUG-035 | Functionality | **Critical** | Only one person could be part-way through signing up at a time | ✅ Fixed |
+| BUG-036 | Functionality | **Critical** | An event happening today vanished from the listing and could not be booked | ✅ Fixed |
 | BUG-033 | Usability | Medium | A malformed email was accepted and "OTP sent successfully" reported | ✅ Fixed |
 | BUG-034 | Data / Logic | Medium | Two admin dashboard figures did not mean what their labels claimed | ✅ Fixed |
 | BUG-006 | Content | Low | Co-founder social links are `href="#"` | ✅ Fixed |
 | BUG-008 | Design | Low | Meet Link field shows for offline events | ✅ Fixed |
 | BUG-009 | Content | Low | Reminder chip reads "1 days before" | ✅ Fixed |
-| BUG-018 | Content | Low | "You already have **a** approved registration" | Open |
+| BUG-018 | Content | Low | "You already have **a** approved registration" | ✅ Fixed |
 
 ### Also worth doing (not bugs)
 
@@ -649,6 +823,61 @@ Recorded so nobody re-raises them:
 - **Why it is wrong:** A fifth of the visible email is empty navy before the reader reaches the message. On a phone it pushes the actual content below the fold.
 - **Fix applied:** logo constrained to 64×64 with the brand name set as text beneath it, giving a compact header that still reads as branded. Rebuilt — verified present in all 20 generated templates.
 - **Test:** M-series design check
+
+#### BUG-035 — Only one person could be part-way through signing up at a time
+- **Type:** Functionality / Data
+- **Severity:** **Critical** — silently breaks signup for everyone after the first
+- **Found:** during the Run 16 end-to-end pass, creating a second brand-new account.
+- **What happens:** `POST /auth/verify-otp` for a new address returns
+  `409 That referralCode (null) is already taken.` — the user is never created and
+  cannot sign up at all.
+- **Root cause:** `referralCode` was declared `unique: true` **without `sparse: true`**.
+  The code is only minted when onboarding *finishes*, so every account still
+  mid-signup carries `referralCode: null` — and a non-sparse unique index treats a
+  second `null` as a duplicate. `mobile`, declared directly above it, already had
+  `sparse` for exactly this reason; this field was missed.
+- **Why it matters more than it looks:** it needs no unusual behaviour to trigger.
+  One person who verifies their email and wanders off without finishing onboarding
+  blocks *every subsequent signup* until their row is removed. On a live launch
+  that is total: the second visitor onwards cannot register.
+- **Why it had never been seen:** every earlier run created accounts one at a time
+  and carried each through onboarding before starting the next, so a second null
+  never coexisted with the first.
+- **Fix:** `sparse: true` on the field, plus dropping and rebuilding the existing
+  non-sparse index (a schema change alone does not alter an index that already
+  exists). Verified before/after: `unique=true sparse=false` → `unique=true sparse=true`.
+- **Note:** the message was readable only because of BUG-011. Before that fix this
+  would have surfaced as a blank `500 Internal server error`.
+- **Test:** B4
+
+#### BUG-036 — An event happening today vanished from the listing and could not be booked
+- **Type:** Functionality / Data
+- **Severity:** **Critical** — the failure lands on the day the event runs
+- **Found:** during Run 16, on an event scheduled for later the same day.
+- **What happens:** the student's events list returned **0 events** for a published
+  event starting in 25 minutes, and registering for it was refused with
+  *"This slot has already passed."*
+- **Root cause:** `slot.date` is stored at **midnight**, and three user-facing
+  checks compared that alone against `now`:
+  ```js
+  event.slots.every((s) => new Date(s.date) < now)   // "all slots are in the past"
+  event.slots.some((s) => new Date(s.date) >= now)   // "has a future slot"
+  if (new Date(slot.date) < new Date()) …            // the registration guard
+  ```
+  For anything happening today, midnight is always in the past — so from 00:01 on
+  the morning of the event it reads as finished. The reminder cron already combined
+  date and time correctly (`getSlotStart`); the user-facing paths never did.
+- **Why it matters:** same-day is exactly when someone looks. A student who hears
+  about a webinar that morning finds nothing, and anyone who already had the link
+  is told the slot has passed while it is still hours away.
+- **Same family as BUG-014**, which compared dates without times on the client. This
+  is the server-side half, and it hides the event outright rather than mislabelling it.
+- **Fix:** a shared `slotStartsAt()` that folds `startTime` into the date, used by all
+  three checks. The admin listing's nearest-slot sort was given the same treatment so
+  two slots on one day no longer order arbitrarily.
+- **Verified:** the same event went from `events: 0` and "already passed" to listed
+  and bookable, at ₹1280 with the coupon applied.
+- **Tests:** F1 · G-series
 
 #### BUG-034 — Two admin dashboard figures did not mean what their labels claimed
 - **Type:** Data / Logic

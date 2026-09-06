@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import ImageUpload from '../../components/ui/image-upload';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { api } from '../../services/api';
@@ -188,6 +189,13 @@ export default function AdminAddEvent() {
       alert('Location is required for offline events.');
       return;
     }
+    // The banner is no longer a native <input required>, so the browser will
+    // not stop the submit for us — the server would, but a round trip to be
+    // told about an empty field is a worse way to find out.
+    if (!bannerUrl.trim()) {
+      alert('A banner image is required — upload one or paste an image address.');
+      return;
+    }
     setIsLoading(true);
     try {
       const reminderConfigs = reminders.map(reminderEntryToConfig);
@@ -263,11 +271,16 @@ export default function AdminAddEvent() {
               <Label>Full Description <span className="text-declined">*</span></Label>
               <textarea required rows={5} value={description} onChange={e => setDescription(e.target.value)} className={`mt-1.5 ${textareaCls}`} placeholder="Detailed description of the event…" />
             </div>
-            <div className="grid sm:grid-cols-2 gap-5">
-              <div>
-                <Label>Banner Image URL <span className="text-declined">*</span></Label>
-                <Input required type="url" value={bannerUrl} onChange={e => setBannerUrl(e.target.value)} className="mt-1.5 h-11" placeholder="https://" />
-              </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <ImageUpload
+                value={bannerUrl}
+                onChange={setBannerUrl}
+                purpose="event-banner"
+                asAdmin
+                required
+                label="Banner image"
+                hint="Shown on the events list and at the top of the event page."
+              />
               <div>
                 <Label>Category <span className="text-declined">*</span></Label>
                 <Input required value={category} onChange={e => setCategory(e.target.value)} className="mt-1.5 h-11" placeholder="e.g. Workshop, Seminar" />

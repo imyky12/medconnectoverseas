@@ -28,6 +28,13 @@ interface EnvConfig {
   /** Flat ₹ discount issued to a referrer when their referral first buys. */
   REFERRAL_REWARD_AMOUNT: number;
   REFERRAL_REWARD_VALIDITY_DAYS: number;
+  // ── Cloudinary (image uploads) ──
+  // All three default to empty rather than being required, so the app still
+  // boots without them. Every upload surface falls back to pasting a URL when
+  // they are unset, which is also how existing image links keep working.
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
 }
 
 const getBool = (key: string, fallback: string): boolean =>
@@ -77,6 +84,9 @@ export const env: EnvConfig = {
   APP_BASE_URL: getEnv('APP_BASE_URL', 'https://medconnectsoverseas.com').replace(/\/+$/, ''),
   REFERRAL_REWARD_AMOUNT: parseInt(getEnv('REFERRAL_REWARD_AMOUNT', '200'), 10),
   REFERRAL_REWARD_VALIDITY_DAYS: parseInt(getEnv('REFERRAL_REWARD_VALIDITY_DAYS', '90'), 10),
+  CLOUDINARY_CLOUD_NAME: getEnv('CLOUDINARY_CLOUD_NAME', ''),
+  CLOUDINARY_API_KEY: getEnv('CLOUDINARY_API_KEY', ''),
+  CLOUDINARY_API_SECRET: getEnv('CLOUDINARY_API_SECRET', ''),
 };
 
 // Fail fast rather than silently dropping mail in production.

@@ -10,7 +10,7 @@ import {
   AlertCircle, MessageSquare, Gift, User as UserIcon, Smartphone,
 } from 'lucide-react';
 
-import OtpInput from '../components/ui/otp-input';
+// import OtpInput from '../components/ui/otp-input';  // restore with the 'verify' step
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import Navbar from '../components/landing/navbar';
@@ -21,8 +21,8 @@ import Navbar from '../components/landing/navbar';
  * This used to be seven screens, one of which was a title card with a single
  * button on it and two of which held one field each. Seven "Continue" clicks to
  * hand over five facts reads as a form that does not respect the person filling
- * it in. It is four now, grouped by what the questions are *for*: who you are,
- * how you got here, and proving the number is yours. Nothing was dropped.
+ * it in. It is three now, grouped by what the questions are *for*: who you are,
+ * how you got here, and how to reach you. Nothing was dropped.
  *
  * The referral code is checked against the server the moment it is typed. It
  * previously showed a green "Code applied" for any string at all and then threw
@@ -30,13 +30,21 @@ import Navbar from '../components/landing/navbar';
  * identical and nobody was ever told their friend had not been credited.
  */
 
-type Step = 'about' | 'finding' | 'phone' | 'verify';
+type Step = 'about' | 'finding' | 'phone';
 
+/**
+ * Mobile verification is switched off — see MOBILE_OTP_ENABLED in the backend's
+ * profile.controller. There is no SMS provider, so the code only ever reached
+ * the server console and nobody could actually finish signing up.
+ *
+ * The 'verify' step and its OTP screen are kept in the file, commented out
+ * below, along with `handleSendOtp`. Add 'verify' back to STEPS and restore
+ * those two blocks when a real sender exists.
+ */
 const STEPS: { id: Step; label: string }[] = [
   { id: 'about', label: 'About you' },
   { id: 'finding', label: 'How you found us' },
   { id: 'phone', label: 'Your number' },
-  { id: 'verify', label: 'Verify' },
 ];
 
 const SOURCES = [
@@ -74,7 +82,7 @@ export default function OnboardingPage() {
   const [codeCheck, setCodeCheck] = useState<CodeCheck>({ state: 'idle' });
   const [phone, setPhone] = useState<string | undefined>('');
   const [phoneCountry, setPhoneCountry] = useState<Country>('IN');
-  const [otp, setOtp] = useState('');
+  // const [otp, setOtp] = useState('');  // restore with the 'verify' step
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -135,6 +143,7 @@ export default function OnboardingPage() {
   const canLeaveAbout = firstName.trim() !== '' && lastName.trim() !== '' && country !== '';
   const canLeaveFinding = source !== '';
 
+  /* Parked with mobile verification. Restore alongside the 'verify' step.
   const handleSendOtp = async () => {
     if (!phone) { setError('Please enter your mobile number.'); return; }
     setIsLoading(true);
@@ -150,9 +159,10 @@ export default function OnboardingPage() {
       setIsLoading(false);
     }
   };
+  */
 
   const handleSubmit = async () => {
-    if (otp.length !== 6) return;
+    if (!phone) { setError('Please enter your mobile number.'); return; }
     setIsLoading(true);
     setError('');
     try {
@@ -162,7 +172,8 @@ export default function OnboardingPage() {
         mobile: phone,
         countryCode: dialCode,
         howDidYouHearAboutUs: source,
-        otp,
+        // `otp` intentionally omitted — the server ignores it while
+        // MOBILE_OTP_ENABLED is false.
         // Only a code the server confirmed is sent. An unverified one would be
         // dropped server-side anyway; not sending it keeps the two in step.
         referredByCode: codeCheck.state === 'valid' ? referralCode.trim().toUpperCase() : undefined,
@@ -446,8 +457,8 @@ export default function OnboardingPage() {
                   <>
                     <StepHeader
                       icon={<Smartphone className="h-4 w-4" />}
-                      title="What is your mobile number?"
-                      subtitle="We text a six-digit code to confirm it is yours. It is also how we reach you if an event you have booked moves."
+                      title="Last thing — how do we reach you?"
+                      subtitle="We use this if an event you have booked is moved or cancelled. Nothing else."
                     />
 
                     <div className="mt-6">
@@ -468,15 +479,18 @@ export default function OnboardingPage() {
 
                     <Actions
                       onBack={() => go(-1)}
-                      onNext={handleSendOtp}
+                      onNext={handleSubmit}
                       nextDisabled={!phone || isLoading}
-                      nextLabel={isLoading ? 'Sending' : 'Send me the code'}
+                      nextLabel={isLoading ? 'Setting up' : 'Finish setting up'}
                       busy={isLoading}
                     />
                   </>
                 )}
 
-                {/* ------------------------------------------- 4. Verify */}
+                {/* ---------------------------------- 4. Verify (parked)
+                    Mobile verification is off — see STEPS above. Restore this
+                    block, `handleSendOtp`, and 'verify' in STEPS together.
+
                 {step === 'verify' && (
                   <>
                     <StepHeader
@@ -519,6 +533,7 @@ export default function OnboardingPage() {
                     </div>
                   </>
                 )}
+                */}
 
               </motion.div>
             </AnimatePresence>

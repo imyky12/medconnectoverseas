@@ -45,6 +45,25 @@ function redact(merge: MergeData, sensitive: boolean): Record<string, unknown> {
 }
 
 /**
+ * Masks a code that has been put in a subject line.
+ *
+ * Redacting `htmlBody` and `mergeData` covered the body but never the subject —
+ * and for the login OTP the subject *is* the code:
+ * `"555449 is your MedConnect Overseas login code"`. Every login code ever sent
+ * was therefore sitting readable in `emaillogs`, reachable by any admin through
+ * `GET /admin/emails` or by anyone with database read access. That is a
+ * complete account-takeover path: request a code for an address, read it out of
+ * the log, log in.
+ *
+ * Only the stored copy is masked. The real subject is still sent — it is handed
+ * to the sender through the in-memory cache, exactly as the body already is.
+ */
+function redactSubject(subject: string, sensitive: boolean): string {
+  if (!sensitive) return subject;
+  return subject.replace(/\d{4,}/g, REDACTED);
+}
+
+/**
  * In-memory handoff from enqueue to the immediate delivery attempt — holds
  * attachment bytes and, for sensitive templates, the rendered body that is
  * deliberately never written to EmailLog. Lost on restart, which is the point:
@@ -52,7 +71,7 @@ function redact(merge: MergeData, sensitive: boolean): Record<string, unknown> {
  */
 const payloadCache = new Map<
   string,
-  { html?: string; attachments?: ZeptoAttachment[]; inlineImages?: ZeptoInlineImage[] }
+  { html?: string; subject?: string; attachments?: ZeptoAttachment[]; inlineImages?: ZeptoInlineImage[] }
 >();
 
 // ─── enqueue ────────────────────────────────────────────────────────────────
@@ -131,7 +150,7 @@ export async function enqueue(input: EnqueueInput): Promise<string | null> {
     const log = await EmailLog.create({
       ...base,
       templateHash: rendered.templateHash,
-      subject: rendered.subject,
+      subject: redactSubject(rendered.subject, meta.sensitive),
       // Bodies are kept indefinitely, except for sensitive templates.
       htmlBody: meta.sensitive ? undefined : rendered.html,
       status: env.MAIL_ENABLED ? 'queued' : 'skipped',
@@ -139,13 +158,16 @@ export async function enqueue(input: EnqueueInput): Promise<string | null> {
     });
 
     if (!env.MAIL_ENABLED) {
-      console.log(`✉️  [mail skipped — MAIL_ENABLED=false] ${meta.key} → ${address} · "${rendered.subject}"`);
+      console.log(
+        `✉️  [mail skipped — MAIL_ENABLED=false] ${meta.key} → ${address} · "${redactSubject(rendered.subject, meta.sensitive)}"`
+      );
       return log.id;
     }
 
     if (meta.sensitive || input.attachments?.length || input.inlineImages?.length) {
       payloadCache.set(log.id, {
         html: meta.sensitive ? rendered.html : undefined,
+        subject: meta.sensitive ? rendered.subject : undefined,
         attachments: input.attachments?.map(({ content, mime_type, name }) => ({ content, mime_type, name })),
         inlineImages: input.inlineImages,
       });
@@ -213,7 +235,9 @@ export async function deliver(logId: string): Promise<void> {
     to: [log.to],
     cc: log.cc,
     replyTo: log.replyTo ? { address: log.replyTo } : undefined,
-    subject: log.subject,
+    // The cached subject is the unmasked one for sensitive templates; for
+    // everything else the stored subject was never masked to begin with.
+    subject: extras?.subject ?? log.subject,
     htmlBody,
     attachments: extras?.attachments,
     inlineImages: extras?.inlineImages,

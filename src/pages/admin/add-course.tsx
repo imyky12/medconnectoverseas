@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import ImageUpload from '../../components/ui/image-upload';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Loader2, ArrowLeft, Plus, Trash2 } from 'lucide-react';
@@ -119,10 +120,15 @@ export default function AdminAddCourse() {
                   <Label>Category Tag <span className="text-declined">*</span></Label>
                   <Input name="category" required value={formData.category} onChange={handleChange} className="h-12" placeholder="e.g. Anatomy" />
                 </div>
-                <div className="space-y-2">
-                  <Label>Thumbnail Image URL <span className="text-declined">*</span></Label>
-                  <Input name="thumbnail" type="url" required value={formData.thumbnail} onChange={handleChange} className="h-12" placeholder="https://" />
-                </div>
+                <ImageUpload
+                  value={formData.thumbnail}
+                  onChange={(url) => setFormData((prev: any) => ({ ...prev, thumbnail: url }))}
+                  purpose="course-thumbnail"
+                  asAdmin
+                  required
+                  label="Thumbnail image"
+                  hint="The card image students see in the catalogue."
+                />
              </div>
              
              <div className="grid md:grid-cols-4 gap-6 pt-4">

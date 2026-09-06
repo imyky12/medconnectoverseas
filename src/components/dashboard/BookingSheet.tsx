@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Loader2, X, Copy, Check, ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
+import { Loader2, X, Copy, Check, ArrowLeft, ArrowRight } from 'lucide-react';
+import ImageUpload from '../ui/image-upload';
 
 /**
  * Booking a place, as two plain steps rather than one dense form.
@@ -231,30 +232,19 @@ export default function BookingSheet({
                   />
                 </div>
 
+                {/* This used to read "upload it to Google Drive or Imgur, set it
+                    to anyone-with-the-link, then paste that link here" — asked of
+                    someone holding a phone with the screenshot already in their
+                    camera roll. Now it is the picture itself. */}
                 <div className="mt-5">
-                  <label htmlFor="shot" className="block text-[14px] font-medium text-ink">
-                    Link to your screenshot
-                  </label>
-                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted">
-                    Upload it to Google Drive or Imgur, set it to anyone-with-the-link, then paste
-                    that link here.
-                  </p>
-                  <input
-                    id="shot"
-                    type="url"
+                  <ImageUpload
                     value={screenshot}
-                    onChange={(e) => setScreenshot(e.target.value)}
-                    placeholder="https://drive.google.com/..."
-                    className="mt-2 w-full rounded-lg border border-rule px-3.5 py-3 text-[15px] text-ink placeholder:text-faint focus:border-signal focus:outline-none"
+                    onChange={setScreenshot}
+                    purpose="payment-screenshot"
+                    disabled={submitting}
+                    label="Your payment screenshot"
+                    hint="The confirmation screen from your UPI or banking app."
                   />
-                  <a
-                    href="https://drive.google.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-signal hover:text-signal-deep"
-                  >
-                    Open Google Drive <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
-                  </a>
                 </div>
 
                 {error && (

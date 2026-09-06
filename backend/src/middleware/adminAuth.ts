@@ -22,6 +22,12 @@ export const adminAuth = async (req: Request, _res: Response, next: NextFunction
     }
 
     req.user = decoded; // Sets user context
+    // Carried through so every logged action names a person, not an id.
+    req.admin = {
+      id: adminUser._id.toString(),
+      name: adminUser.fullName?.trim() || adminUser.email,
+      email: adminUser.email,
+    };
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {

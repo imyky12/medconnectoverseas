@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Check } from 'lucide-react';
 import { api } from '../../services/api';
+import ImageUpload from '../../components/ui/image-upload';
 
 /**
  * These details are shown to a student at the moment they are about to pay, so
@@ -19,7 +20,6 @@ type Form = typeof EMPTY;
 const FIELDS: { key: keyof Form; label: string; hint?: string; placeholder?: string }[] = [
   { key: 'upiId', label: 'UPI ID', placeholder: 'name@bank' },
   { key: 'upiName', label: 'Name on the UPI account', placeholder: 'As it appears when paying' },
-  { key: 'qrCodeUrl', label: 'UPI QR image link', hint: 'A public image URL. Students scan this.' },
   { key: 'accountHolderName', label: 'Account holder' },
   { key: 'bankName', label: 'Bank' },
   { key: 'accountNumber', label: 'Account number' },
@@ -93,9 +93,21 @@ export default function AdminPaymentSettings() {
             <legend className="font-display text-[17px] font-600 text-ink">Pay by UPI</legend>
             <p className="mt-1 text-[13px] text-muted">Most students use this.</p>
             <div className="mt-4 space-y-4">
-              {FIELDS.slice(0, 3).map((f) => (
+              {FIELDS.slice(0, 2).map((f) => (
                 <Field key={f.key} field={f} value={form[f.key]} onChange={set(f.key)} />
               ))}
+              {/* Square preview, because this is the thing a student points a
+                  camera at — if it is not a real QR code that is now visible
+                  here rather than only at checkout. */}
+              <ImageUpload
+                value={form.qrCodeUrl}
+                onChange={(url) => setForm((prev) => ({ ...prev, qrCodeUrl: url }))}
+                purpose="payment-qr"
+                asAdmin
+                aspect="square"
+                label="UPI QR code"
+                hint="Students scan this to pay. Upload the QR image from your banking app."
+              />
             </div>
           </fieldset>
 
@@ -103,7 +115,7 @@ export default function AdminPaymentSettings() {
             <legend className="font-display text-[17px] font-600 text-ink">Bank transfer</legend>
             <p className="mt-1 text-[13px] text-muted">Shown as an alternative if a student cannot use UPI.</p>
             <div className="mt-4 space-y-4">
-              {FIELDS.slice(3).map((f) => (
+              {FIELDS.slice(2).map((f) => (
                 <Field key={f.key} field={f} value={form[f.key]} onChange={set(f.key)} />
               ))}
             </div>

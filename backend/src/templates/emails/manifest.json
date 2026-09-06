@@ -15,6 +15,21 @@
     ]
   },
   {
+    "key": "newsletter-access-otp",
+    "file": "newsletter-access-otp.html",
+    "subject": "{{otp}} is your code for {{newsletter_title}}",
+    "preheader": "Enter this code to open the issue. It expires in {{expiry_minutes}} minutes.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": true,
+    "trigger": "newsletter.controller.ts → requestNewsletterAccess",
+    "variables": [
+      "otp",
+      "newsletter_title",
+      "expiry_minutes"
+    ]
+  },
+  {
     "key": "auth-welcome",
     "file": "auth-welcome.html",
     "subject": "Welcome aboard, {{first_name}} — your MCO journey starts here",
@@ -323,6 +338,22 @@
     "trigger": "newsletter.controller.ts → subscribe (endpoint not built yet)",
     "variables": [
       "email"
+    ]
+  },
+  {
+    "key": "newsletter-issue",
+    "file": "newsletter-issue.html",
+    "subject": "Med Nexus — {{newsletter_title}}",
+    "preheader": "{{newsletter_summary}}",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "newsletter.controller.ts → notifySubscribers",
+    "variables": [
+      "newsletter_title",
+      "newsletter_edition",
+      "newsletter_summary",
+      "download_url"
     ]
   },
   {

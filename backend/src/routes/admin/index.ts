@@ -27,6 +27,39 @@ router.use(adminAuth);
 // Dashboard
 router.get('/dashboard', getDashboardStats);
 
+// Admin-side upload signing. Everything below `router.use(adminAuth)` already
+// requires an admin token, so passing 'admin' here is safe: the folders in
+// UPLOAD_TARGETS marked admin are reachable only through this route.
+import { createUploadSignature } from '../../controllers/upload.controller';
+router.post('/uploads/signature', createUploadSignature('admin'));
+
+// ─── Legal documents ───────────────────────────────────
+import {
+  listPolicies, getPolicy, savePolicyDraft, publishPolicy,
+  getPolicyVersion, restorePolicyVersion,
+} from '../../controllers/admin/policy.controller';
+router.get('/policies', listPolicies);
+router.get('/policies/:slug', getPolicy);
+router.put('/policies/:slug/draft', savePolicyDraft);
+router.post('/policies/:slug/publish', publishPolicy);
+router.get('/policies/:slug/versions/:version', getPolicyVersion);
+router.post('/policies/:slug/versions/:version/restore', restorePolicyVersion);
+
+// ─── Newsletter ────────────────────────────────────────
+import {
+  listAllNewsletters, createNewsletter, updateNewsletter, deleteNewsletter, notifySubscribers,
+} from '../../controllers/newsletter.controller';
+router.get('/newsletters', listAllNewsletters);
+router.post('/newsletters', createNewsletter);
+router.put('/newsletters/:id', updateNewsletter);
+router.delete('/newsletters/:id', deleteNewsletter);
+router.post('/newsletters/:id/notify', notifySubscribers);
+
+// ─── Activity log ──────────────────────────────────────
+import { listActivity, listActivityActions } from '../../controllers/admin/activity.controller';
+router.get('/activity', listActivity);
+router.get('/activity/actions', listActivityActions);
+
 // Users
 router.get('/users', getAllUsers);
 router.patch('/users/:id/toggle-status', toggleUserStatus);

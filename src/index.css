@@ -276,3 +276,54 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Rendered Markdown ───────────────────────────────────────────────────────
+   Used by the legal pages and the admin editor preview. Scoped to `.md-body`
+   so it cannot leak into the rest of the app, and written against the design
+   tokens so a policy page reads like the site rather than like a raw document. */
+.md-body { color: var(--color-body); line-height: 1.7; }
+.md-body > *:first-child { margin-top: 0; }
+.md-body h1 {
+  font-family: var(--font-display); font-size: 30px; font-weight: 600;
+  color: var(--color-ink); letter-spacing: -0.018em; margin: 0 0 8px;
+}
+.md-body h2 {
+  font-family: var(--font-display); font-size: 20px; font-weight: 600;
+  color: var(--color-ink); margin: 34px 0 10px; padding-top: 18px;
+  border-top: 1px solid var(--color-rule-soft);
+}
+.md-body h3 {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600;
+  color: var(--color-ink); margin: 22px 0 8px;
+}
+.md-body p { margin: 0 0 14px; font-size: 15px; }
+.md-body ul, .md-body ol { margin: 0 0 16px; padding-left: 22px; }
+.md-body li { margin: 0 0 7px; font-size: 15px; }
+/* Nested lists are used for the refund exclusions — keep them visually subordinate. */
+.md-body li > ul, .md-body li > ol { margin: 7px 0 0; }
+.md-body a { color: var(--color-signal); text-decoration: none; font-weight: 500; }
+.md-body a:hover { text-decoration: underline; }
+.md-body strong { color: var(--color-ink); font-weight: 600; }
+.md-body em { color: var(--color-muted); }
+.md-body hr { border: 0; border-top: 1px solid var(--color-rule); margin: 28px 0; }
+.md-body blockquote {
+  margin: 0 0 16px; padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--color-rule); color: var(--color-muted);
+}
+.md-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+  background: var(--color-paper); padding: 2px 5px; border-radius: 4px;
+}
+.md-body table { width: 100%; border-collapse: collapse; margin: 0 0 16px; font-size: 14px; }
+.md-body th, .md-body td { border: 1px solid var(--color-rule); padding: 8px 10px; text-align: left; }
+.md-body th { background: var(--color-paper); font-weight: 600; color: var(--color-ink); }
+
+/* Printing a legal document is a real thing people do — a signed-off copy for
+   their records. Strip the site chrome and let the text flow. */
+@media print {
+  nav, header, footer, aside { display: none !important; }
+  .md-body { font-size: 11pt; }
+  .md-body h2 { page-break-after: avoid; }
+  .md-body li, .md-body p { page-break-inside: avoid; }
+  article > div { border: 0 !important; padding: 0 !important; }
+}

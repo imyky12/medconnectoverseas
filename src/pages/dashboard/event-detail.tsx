@@ -530,19 +530,33 @@ export default function EventDetail() {
                   </>
                 ) : (
                   <>
-                    <div className="mb-1 flex items-baseline gap-3">
-                      <span className="tabular text-[30px] font-700 text-ink">
-                        {(finalPrice ?? basePrice) === 0 ? 'Free' : `₹${finalPrice ?? basePrice}`}
-                      </span>
-                      {event.discountedPrice && (
-                        <span className="tabular text-[16px] text-faint line-through">₹{event.price}</span>
-                      )}
-                    </div>
-                    {event.discountedPrice && (
-                      <p className="text-[13px] font-600 text-confirmed">
-                        You save ₹{event.price - (finalPrice ?? event.discountedPrice)}
-                      </p>
-                    )}
+                    {/* Measured against the price actually payable, so a coupon
+                        is reflected here rather than contradicting it. Also shows
+                        when a coupon alone creates the saving — previously the
+                        whole block was hidden unless the event carried its own
+                        discount, so coupon savings went unmentioned. */}
+                    {(() => {
+                      const payable = finalPrice ?? basePrice;
+                      const saved = Math.max(0, event.price - payable);
+                      const pct = event.price > 0 ? Math.round((saved / event.price) * 100) : 0;
+                      return (
+                        <>
+                          <div className="mb-1 flex items-baseline gap-3">
+                            <span className="tabular text-[30px] font-700 text-ink">
+                              {payable === 0 ? 'Free' : `₹${payable}`}
+                            </span>
+                            {saved > 0 && (
+                              <span className="tabular text-[16px] text-faint line-through">₹{event.price}</span>
+                            )}
+                          </div>
+                          {saved > 0 && (
+                            <p className="text-[13px] font-600 text-confirmed">
+                              You save ₹{saved}{pct > 0 ? ` (${pct}% off)` : ''}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </>
                 )}
               </div>

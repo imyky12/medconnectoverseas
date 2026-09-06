@@ -32,7 +32,14 @@ export const getAllEvents = asyncHandler(async (_req: Request, res: Response) =>
   withCounts.sort((a, b) => {
     const nearestSlot = (e: typeof a) => {
       const futureDates = e.slots
-        .map((s) => new Date(s.date).getTime())
+        .map((s) => {
+          // Date + start time: two slots on one day are otherwise equal, and
+          // the nearest-slot sort picks arbitrarily between them.
+          const at = new Date(s.date);
+          const [h, m] = String(s.startTime ?? '00:00').split(':').map(Number);
+          at.setHours(h || 0, m || 0, 0, 0);
+          return at.getTime();
+        })
         .filter((t) => t >= Date.now());
       return futureDates.length ? Math.min(...futureDates) : Infinity;
     };

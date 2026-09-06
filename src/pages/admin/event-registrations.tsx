@@ -34,6 +34,9 @@ export default function AdminEventRegistrations() {
 
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string; user?: any } | null>(null);
+  const [manualToken, setManualToken] = useState('');
+  const [cameraError, setCameraError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerDivId = 'qr-scanner-region';
 
@@ -66,43 +69,86 @@ export default function AdminEventRegistrations() {
       .catch(console.error);
   };
 
+  /**
+   * Records one attendance token, however it arrived.
+   *
+   * Shared by the camera and the manual box so both take exactly the same path
+   * to the API — the door staff should not get different behaviour depending on
+   * whether the camera happened to work.
+   */
+  const submitToken = async (rawToken: string) => {
+    const qrToken = rawToken.trim();
+    if (!qrToken) return;
+    setSubmitting(true);
+    try {
+      const res: any = await api.post(
+        '/admin/events/attendance/scan',
+        { qrToken },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (res.success) {
+        setScanResult({
+          success: true,
+          message: res.data.alreadyMarked ? 'Already checked in' : 'Checked in',
+          user: res.data.registration?.user,
+        });
+        setManualToken('');
+        fetchData();
+      } else {
+        setScanResult({ success: false, message: res.message || 'That pass was not recognised.' });
+      }
+    } catch (e: any) {
+      setScanResult({ success: false, message: e.message || 'Could not record that scan.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const startScanner = async () => {
     setScanResult(null);
+    setCameraError('');
     setScannerOpen(true);
+
+    // `getUserMedia` does not exist outside a secure context, so on a venue
+    // laptop served over plain HTTP the camera can never work. Say so up front
+    // rather than showing an instruction that will never come true.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setCameraError(
+        'The camera is unavailable because this page is not on a secure (https) connection. Type or paste the pass code below instead.',
+      );
+      return;
+    }
+
     setTimeout(async () => {
       try {
         const qr = new Html5Qrcode(scannerDivId);
         scannerRef.current = qr;
-        await qr.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          async (decodedText) => {
-            await qr.stop();
-            scannerRef.current = null;
-            try {
-              const res: any = await api.post(
-                '/admin/events/attendance/scan',
-                { qrToken: decodedText },
-                { headers: { Authorization: `Bearer ${token}` } },
-              );
-              if (res.success) {
-                setScanResult({
-                  success: true,
-                  message: res.data.alreadyMarked ? 'Already checked in' : 'Checked in',
-                  user: res.data.registration?.user,
-                });
-                fetchData();
-              } else {
-                setScanResult({ success: false, message: res.message || 'That pass was not recognised.' });
-              }
-            } catch (e: any) {
-              setScanResult({ success: false, message: e.message || 'Could not record that scan.' });
-            }
-          },
-          () => {},
+
+        // The original code awaited start() with no ceiling. When it neither
+        // resolved nor rejected — which is what actually happened on a machine
+        // with no usable camera — the catch never ran and the prompt sat there
+        // forever with no error at all. A hang is now a message.
+        await Promise.race([
+          qr.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            async (decodedText) => {
+              try { await qr.stop(); } catch { /* already stopping */ }
+              scannerRef.current = null;
+              await submitToken(decodedText);
+            },
+            () => {},
+          ),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('camera-timeout')), 8000),
+          ),
+        ]);
+      } catch (e: any) {
+        setCameraError(
+          e?.message === 'camera-timeout'
+            ? 'The camera did not start. Type or paste the pass code below instead.'
+            : 'Could not access the camera. Type or paste the pass code below instead.',
         );
-      } catch (e) {
-        setScanResult({ success: false, message: 'Could not access camera.' });
       }
     }, 100);
   };
@@ -114,6 +160,7 @@ export default function AdminEventRegistrations() {
     }
     setScannerOpen(false);
     setScanResult(null);
+    setCameraError('');
   };
 
   const stats = useMemo(() => {
@@ -219,7 +266,47 @@ export default function AdminEventRegistrations() {
               <X className="h-5 w-5" strokeWidth={1.75} />
             </button>
           </div>
-          <div id={scannerDivId} className="mx-auto w-full max-w-[420px] p-4" />
+          {!cameraError && <div id={scannerDivId} className="mx-auto w-full max-w-[420px] p-4" />}
+
+          {cameraError && (
+            <p className="mx-4 mt-4 rounded-md bg-holding-wash px-4 py-3 text-[13px] text-ink">
+              {cameraError}
+            </p>
+          )}
+
+          {/* Always present, camera or not. If the camera fails at the door and
+              there is no way to type a code, the queue simply stops — which is
+              the more serious half of this problem, and the half that does not
+              depend on the machine. */}
+          <form
+            onSubmit={(e) => { e.preventDefault(); void submitToken(manualToken); }}
+            className="mx-4 mb-4 mt-4 border-t border-rule-soft pt-4"
+          >
+            <label htmlFor="manual-token" className="block text-[13px] font-medium text-ink">
+              Or enter the pass code by hand
+            </label>
+            <p className="mt-0.5 text-[12px] text-muted">
+              It is printed under the QR on the attendee&rsquo;s pass and in their confirmation email.
+            </p>
+            <div className="mt-2 flex gap-2">
+              <input
+                id="manual-token"
+                value={manualToken}
+                onChange={(e) => setManualToken(e.target.value)}
+                placeholder="e.g. 3f9a1c7e-…"
+                autoComplete="off"
+                className="h-10 flex-1 rounded-md border border-rule bg-surface px-3 font-mono text-[13px] text-ink outline-none transition-colors placeholder:font-sans placeholder:text-faint focus:border-signal"
+              />
+              <button
+                type="submit"
+                disabled={!manualToken.trim() || submitting}
+                className="rounded-md bg-ink px-4 text-[14px] font-medium text-white transition-colors hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {submitting ? 'Checking…' : 'Check in'}
+              </button>
+            </div>
+          </form>
+
           {scanResult && (
             <div className={`spine ${scanResult.success ? 'spine-confirmed' : 'spine-declined'} mx-4 mb-4 py-3`}>
               <p className={`state ${scanResult.success ? 'state-confirmed' : 'state-declined'}`}>

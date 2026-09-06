@@ -61,7 +61,27 @@ const generateUniqueReferralCode = async (mobile: string): Promise<string> => {
 };
 
 /**
- * Onboarding controller taking full details and validating the phone OTP inline.
+ * Is the mobile number verified by SMS during onboarding?
+ *
+ * **Off, deliberately.** There is no SMS provider wired up — `sms.service.ts`
+ * only prints the code to the server console, so the code never reaches the
+ * person signing up and nobody outside this machine could finish onboarding at
+ * all. A verification step that cannot be passed is worse than no step.
+ *
+ * Everything needed to switch it back on is still here and still tested: the
+ * `request-mobile-otp` endpoint, the OTP issue/verify round trip, and the
+ * client's verify screen. Flip this to `true` once a real sender exists — see
+ * `msg91-whatsapp-integration.md` at the repo root.
+ *
+ * While it is off, `isMobileVerified` is stored as **false**, because the
+ * number genuinely has not been verified. Nothing should read that flag and
+ * conclude otherwise.
+ */
+const MOBILE_OTP_ENABLED = false;
+
+/**
+ * Onboarding controller taking full details, and validating the phone OTP
+ * inline when mobile verification is switched on.
  */
 export const onboarding = asyncHandler(async (req: Request, res: Response) => {
   const { firstName, lastName, country, mobile, countryCode, howDidYouHearAboutUs, otp, referredByCode } = req.body;
@@ -71,21 +91,29 @@ export const onboarding = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, 'Unauthorized');
   }
 
-  if (!firstName || !lastName || !country || !mobile || !countryCode || !otp) {
-    throw new ApiError(400, 'All fields including OTP are required to complete onboarding');
+  if (!firstName || !lastName || !country || !mobile || !countryCode) {
+    throw new ApiError(400, 'Your name, country and mobile number are all required to finish setting up');
+  }
+  if (MOBILE_OTP_ENABLED && !otp) {
+    throw new ApiError(400, 'The verification code sent to your mobile is required');
   }
 
-  // 1. Verify Mobile OTP — against the same canonical number the OTP was
-  // issued to, so a client that formats the number differently between the two
-  // calls does not fail verification for a code that is actually correct.
+  // The number is still normalised and sanity-checked even with verification
+  // off: it is stored, shown to admins on payment alerts, and will be the
+  // WhatsApp destination later, so a malformed one is a problem regardless.
   const normalizedMobile = normalizeMobile(mobile, countryCode);
   if (!isPlausibleMobile(normalizedMobile)) {
     throw new ApiError(400, 'That does not look like a valid mobile number.');
   }
 
-  const isOtpValid = await verifyOtp(normalizedMobile, 'sms', otp);
-  if (!isOtpValid) {
-    throw new ApiError(400, 'Invalid or expired OTP for mobile number');
+  if (MOBILE_OTP_ENABLED) {
+    // Verified against the same canonical number the OTP was issued to, so a
+    // client that formats the number differently between the two calls does not
+    // fail verification for a code that is actually correct.
+    const isOtpValid = await verifyOtp(normalizedMobile, 'sms', otp);
+    if (!isOtpValid) {
+      throw new ApiError(400, 'Invalid or expired OTP for mobile number');
+    }
   }
 
   // 2. Fetch User
@@ -140,7 +168,8 @@ export const onboarding = asyncHandler(async (req: Request, res: Response) => {
   user.countryCode = countryCode.trim();
   user.howDidYouHearAboutUs = howDidYouHearAboutUs ? howDidYouHearAboutUs.trim() : undefined;
 
-  user.isMobileVerified = true;
+  // Honest: only true when a code was actually checked.
+  user.isMobileVerified = MOBILE_OTP_ENABLED;
   user.isOnboardingComplete = true;
   user.referralCode = referralCode;
   if (referrer) user.referredBy = referrer._id as any;

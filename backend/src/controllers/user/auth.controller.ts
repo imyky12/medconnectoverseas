@@ -8,6 +8,7 @@ import { createSession } from '../../services/session.service';
 import { ApiResponse } from '../../utils/ApiResponse';
 import { ApiError } from '../../utils/ApiError';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { recordActivity } from '../../services/activity.service';
 
 /**
  * Deliberately permissive: one @, no spaces, a dot in the domain. Anything
@@ -81,6 +82,25 @@ export const verifyEmailOtp = asyncHandler(async (req: Request, res: Response) =
   if (!user.isActive) {
     throw new ApiError(403, 'This account has been suspended. Please contact support.');
   }
+
+  // Recorded here rather than by the activity middleware, for the same reason as
+  // the admin login: `auth` cannot run on the login route, so the middleware
+  // only ever sees an anonymous request. "Who signed in, and from where" is one
+  // of the more useful rows in the log, so it needs a name on it.
+  recordActivity({
+    actorType: 'user',
+    actorId: user._id.toString(),
+    actorName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
+    actorEmail: user.email,
+    action: 'user.login',
+    summary: 'Signed in',
+    method: req.method,
+    path: '/auth/verify-otp',
+    statusCode: 200,
+    success: true,
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
 
   // Device Info & IP Logic (Minimal fallback if undefined)
   const deviceInfo = req.headers['user-agent'] || 'unknown device';

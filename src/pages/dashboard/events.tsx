@@ -22,12 +22,38 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'previous', label: 'Been to' },
 ];
 
+/**
+ * When a slot actually starts — date *and* time.
+ *
+ * Comparing `date` alone made every slot on the same day compare equal, so the
+ * reducer below kept whichever came last in the array. An event with 10:00 and
+ * 15:00 on one day showed the 15:00 slot, and its seat count with it. Same-day
+ * multi-slot events are the normal case here, not an edge case.
+ */
+function slotStart(slot: any): number {
+  const [h, m] = String(slot?.startTime ?? '00:00').split(':').map(Number);
+  const at = new Date(slot.date);
+  at.setHours(h || 0, m || 0, 0, 0);
+  return at.getTime();
+}
+
 function nearestSlot(slots: any[]): any | null {
   if (!slots?.length) return null;
   const now = Date.now();
-  const future = slots.filter((s) => new Date(s.date).getTime() >= now);
-  if (future.length) return future.reduce((a, b) => (new Date(a.date) < new Date(b.date) ? a : b));
-  return slots.reduce((a, b) => (new Date(a.date) > new Date(b.date) ? a : b));
+  const future = slots.filter((s) => slotStart(s) >= now);
+  if (future.length) return future.reduce((a, b) => (slotStart(a) <= slotStart(b) ? a : b));
+  return slots.reduce((a, b) => (slotStart(a) >= slotStart(b) ? a : b));
+}
+
+/** Seats free right now, across every slot that has not yet started. */
+function seatsAcrossUpcomingSlots(slots: any[]): number {
+  const now = Date.now();
+  return (slots ?? [])
+    .filter((s) => slotStart(s) >= now)
+    .reduce((sum, s) => {
+      const free = s.availableSeats !== undefined ? s.availableSeats : s.totalSeats - s.bookedSeats;
+      return sum + Math.max(0, free ?? 0);
+    }, 0);
 }
 
 export default function EventsPage() {
@@ -52,7 +78,7 @@ export default function EventsPage() {
       events
         .map((e) => ({ e, slot: nearestSlot(e.slots ?? []) }))
         .filter((x) => x.slot)
-        .sort((a, b) => new Date(a.slot.date).getTime() - new Date(b.slot.date).getTime()),
+        .sort((a, b) => slotStart(a.slot) - slotStart(b.slot)),
     [events],
   );
 
@@ -116,16 +142,30 @@ function EventCard({
   const date = new Date(slot.date);
   const reg: 'pending' | 'approved' | null = event.registrationStatus ?? null;
   const seats = slot.availableSeats !== undefined ? slot.availableSeats : slot.totalSeats - slot.bookedSeats;
-  const isPast = date.getTime() < Date.now();
+  const isPast = slotStart(slot) < Date.now();
   const price = event.discountedPrice ?? event.price;
   const free = price === 0;
 
+  // Counted across every upcoming slot, not just the one on show. Reporting the
+  // first slot's seats alone said "1 seat left" for an event with three free
+  // across two sittings — false urgency, and it hides the other sitting
+  // entirely. The rule is that seat availability must never mislead.
+  const upcomingSlots = (event.slots ?? []).filter((sl: any) => slotStart(sl) >= Date.now());
+  const seatsAll = seatsAcrossUpcomingSlots(event.slots ?? []);
+  const multiSlot = upcomingSlots.length > 1;
+
   // Say the seat situation the way a person would.
-  const seatLine =
-    seats <= 0 ? 'Fully booked'
+  const seatLine = multiSlot
+    ? (seatsAll <= 0
+        ? 'Fully booked'
+        : `${seatsAll} ${seatsAll === 1 ? 'seat' : 'seats'} left across ${upcomingSlots.length} sittings`)
+    : seats <= 0 ? 'Fully booked'
     : seats === 1 ? 'Last seat'
     : seats <= 5 ? `Only ${seats} seats left`
     : `${seats} seats left`;
+
+  // Colour and the call to action follow whichever count is on show.
+  const seatsShown = multiSlot ? seatsAll : seats;
 
   return (
     <article className="overflow-hidden rounded-xl border border-rule bg-surface transition-shadow hover:shadow-[0_2px_16px_rgba(7,26,51,0.08)]">
@@ -180,7 +220,7 @@ function EventCard({
               : <><MapPin className="h-4 w-4 shrink-0 text-faint" strokeWidth={1.75} /> {event.location || 'Venue announced soon'}</>}
           </p>
           {!isPast && !reg && (
-            <p className={`flex items-center gap-2 ${seats <= 0 ? 'text-declined' : seats <= 5 ? 'text-holding' : ''}`}>
+            <p className={`flex items-center gap-2 ${seatsShown <= 0 ? 'text-declined' : seatsShown <= 5 ? 'text-holding' : ''}`}>
               <Users className="h-4 w-4 shrink-0 text-faint" strokeWidth={1.75} />
               {seatLine}
             </p>
@@ -220,7 +260,7 @@ function EventCard({
               onClick={onOpen}
               className="rounded-lg bg-signal px-6 py-3 text-[15px] font-medium text-white transition-colors hover:bg-signal-deep"
             >
-              {seats <= 0 ? 'See details' : 'Book a place'}
+              {seatsShown <= 0 ? 'See details' : 'Book a place'}
             </button>
           )}
         </div>

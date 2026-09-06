@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { Loader2, Plus, Edit2, Trash2, BookOpen, X, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ImageUpload from '../../components/ui/image-upload';
 
 interface CourseType {
   _id: string;
@@ -296,9 +297,14 @@ export default function AdminCourses() {
                       <input type="number" min="0" value={editingCourse.estimatedDurationHours ?? 0} onChange={e => updField('estimatedDurationHours', Number(e.target.value))} className={inputCls} />
                     </Field>
                   </div>
-                  <Field label="Thumbnail URL" required>
-                    <input type="url" value={editingCourse.thumbnail ?? ''} onChange={e => updField('thumbnail', e.target.value)} className={inputCls} placeholder="https://" />
-                  </Field>
+                  <ImageUpload
+                    value={editingCourse.thumbnail ?? ''}
+                    onChange={(url) => updField('thumbnail', url)}
+                    purpose="course-thumbnail"
+                    asAdmin
+                    required
+                    label="Thumbnail"
+                  />
                   <Field label="Preview Video URL">
                     <input type="url" value={editingCourse.previewVideo ?? ''} onChange={e => updField('previewVideo', e.target.value)} className={inputCls} placeholder="https://youtube.com/..." />
                   </Field>

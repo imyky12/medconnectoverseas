@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/landing/navbar";
 import Footer from "@/components/landing/footer";
+import { api } from "../services/api";
 
 const SOCIAL_ICONS = {
   facebook: { Icon: Facebook, label: "Facebook" },
@@ -47,21 +48,33 @@ export default function ContactPage() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [submitError, setSubmitError] = useState("");
+  const [ticketId, setTicketId] = useState("");
+
+  /**
+   * This used to be a `setTimeout` that showed "Message Sent!" and did nothing
+   * else — no request, no record, no email. Every enquiry was lost, and the
+   * sender was told the opposite. It now posts to a real endpoint, and only
+   * claims success when the server says so.
+   */
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // Simulate form submission
-    setTimeout(() => {
+    setSubmitError("");
+    try {
+      const res: any = await api.post("/contact", formState);
+      if (res?.success) {
+        setTicketId(res.data?.ticketId ?? "");
+        setIsSubmitted(true);
+        setFormState({ name: "", email: "", subject: "", message: "" });
+      } else {
+        setSubmitError(res?.message || "We could not send your message. Please try again.");
+      }
+    } catch (err: any) {
+      setSubmitError(err?.message || "We could not send your message. Please try again.");
+    } finally {
       setIsSubmitting(false);
-      setIsSubmitted(true);
-      setFormState({
-        name: "",
-        email: "",
-        subject: "",
-        message: "",
-      });
-    }, 1500);
+    }
   };
 
   return (
@@ -250,10 +263,18 @@ export default function ContactPage() {
                     <h3 className="text-2xl font-bold text-[#041c44] mb-2">
                       Message Sent!
                     </h3>
-                    <p className="text-gray-600 mb-6">
-                      Thank you for reaching out. We'll get back to you as soon
-                      as possible.
+                    <p className="text-gray-600 mb-2">
+                      Thank you for reaching out. We usually reply within 2
+                      working days, and a copy is on its way to your inbox.
                     </p>
+                    {/* Quoted so the sender has something to refer to — and so
+                        "it was sent" is backed by a real record, not a claim. */}
+                    {ticketId && (
+                      <p className="text-gray-500 text-sm mb-6">
+                        Your reference is{" "}
+                        <span className="font-mono font-semibold text-[#041c44]">{ticketId}</span>
+                      </p>
+                    )}
                     <Button
                       onClick={() => setIsSubmitted(false)}
                       className="bg-[#041c44] hover:bg-[#041c44]/90"
@@ -263,6 +284,11 @@ export default function ContactPage() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {submitError && (
+                      <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                        {submitError}
+                      </p>
+                    )}
                     <div>
                       <label
                         htmlFor="name"

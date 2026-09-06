@@ -273,6 +273,21 @@ const templates = [
     ],
   },
   {
+    key: 'newsletter-access-otp',
+    sensitive: true, // carries a live OTP — body is never persisted to EmailLog
+    trigger: 'newsletter.controller.ts → requestNewsletterAccess',
+    subject: '{{otp}} is your code for {{newsletter_title}}',
+    preheader: 'Enter this code to open the issue. It expires in {{expiry_minutes}} minutes.',
+    heading: 'Here is your access code',
+    vars: ['otp', 'newsletter_title', 'expiry_minutes'],
+    body: [
+      p('You asked to read <strong>{{newsletter_title}}</strong>. Enter the code below and the PDF opens straight away — there is no account to create.'),
+      codeBlock('{{otp}}', 'Valid for {{expiry_minutes}} minutes'),
+      p("Didn't ask for this? Ignore this email — nothing has been sent to you and no account has been made.", { muted: true, small: true }),
+      signoff(),
+    ],
+  },
+  {
     key: 'auth-welcome',
     trigger: 'user/profile.controller.ts → onboarding',
     subject: 'Welcome aboard, {{first_name}} — your MCO journey starts here',
@@ -671,6 +686,23 @@ const templates = [
       signoff(),
     ],
     footerNote: 'You are subscribed as {{email}}. Changed your mind? Unsubscribe below — no hard feelings.',
+  },
+  {
+    key: 'newsletter-issue',
+    trigger: 'newsletter.controller.ts → notifySubscribers',
+    subject: 'Med Nexus — {{newsletter_title}}',
+    preheader: '{{newsletter_summary}}',
+    heading: '{{newsletter_title}}',
+    vars: ['newsletter_title', 'newsletter_edition', 'newsletter_summary', 'download_url'],
+    body: [
+      pill('{{newsletter_edition}}', 'info'),
+      p('{{newsletter_summary}}'),
+      // The link carries a signed ticket tied to this address, so a subscriber
+      // who is already known does not have to prove the same email twice.
+      btn('Read this issue', '{{download_url}}'),
+      p('The link above works only from this email address and stays valid for 30 days. If it expires, you can always open the issue from the newsletter page.', { muted: true, small: true }),
+      signoff(),
+    ],
   },
   {
     key: 'contact-ack',

@@ -6,6 +6,7 @@ import { corsOptions } from "./config/cors";
 import { errorHandler } from "./middleware/errorHandler";
 import { apiLimiter } from "./middleware/rateLimiter";
 import routes from "./routes";
+import { recordRequestActivity } from "./middleware/activity";
 
 const app = express();
 
@@ -22,6 +23,11 @@ app.use(cookieParser());
 // app.use('/api', apiLimiter);
 
 // ─── API Routes ────────────────────────────────────────
+// Records every state-changing request. Mounted before the routes so it wraps
+// all of them — including endpoints added later, which is the point of doing
+// this here rather than one call at a time inside each controller.
+app.use("/api/v1", recordRequestActivity);
+
 app.use("/api/v1", routes);
 
 // ─── Health Check ──────────────────────────────────────

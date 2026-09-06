@@ -31,6 +31,10 @@ import AdminPaymentSettings from "./pages/admin/payment-settings";
 import AdminEvents from "./pages/admin/events";
 import AdminAddEvent from "./pages/admin/add-event";
 import AdminEventRegistrations from "./pages/admin/event-registrations";
+import AdminPolicies from "./pages/admin/policies";
+import AdminActivity from "./pages/admin/activity";
+import AdminNewsletters from "./pages/admin/newsletters";
+import PolicyPage from "./pages/PolicyPage";
 
 import UserLayout from "./components/dashboard/UserLayout";
 
@@ -56,6 +60,11 @@ function App() {
            <Route path="events/:eventCode" element={<EventDetail />} />
         </Route>
 
+        {/* Legal documents. The text comes from the database so an admin can
+            change it without a deploy — see /admin/policies. */}
+        <Route path="/terms" element={<PolicyPage slug="terms" fallbackTitle="Terms & Conditions" />} />
+        <Route path="/privacy" element={<PolicyPage slug="privacy" fallbackTitle="Privacy Policy" />} />
+
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminLayout />}>
@@ -70,6 +79,9 @@ function App() {
            <Route path="events/new" element={<AdminAddEvent />} />
            <Route path="events/:id/edit" element={<AdminAddEvent />} />
            <Route path="events/:id/registrations" element={<AdminEventRegistrations />} />
+           <Route path="newsletters" element={<AdminNewsletters />} />
+           <Route path="policies" element={<AdminPolicies />} />
+           <Route path="activity" element={<AdminActivity />} />
         </Route>
 
         {/* Anything that matched nothing above. Without this, an unknown URL

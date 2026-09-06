@@ -7,9 +7,32 @@ import { EventRegistration } from "../../models/EventRegistration.model";
 import { Order } from "../../models/Order.model";
 import { Coupon } from "../../models/Coupon.model";
 import { User } from "../../models/User.model";
-import { notifyEventOrderSubmitted } from "../../services/email/notifications";
+import { v4 as uuidv4 } from "uuid";
+import QRCode from "qrcode";
+import {
+  notifyEventOrderSubmitted,
+  notifyOrderStatusChange,
+} from "../../services/email/notifications";
+import { assertPaymentReferenceUnused } from "../../services/payment-reference";
+import { claimSeat } from "../../services/seat.service";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * When a slot actually begins — date **and** start time.
+ *
+ * `slot.date` is midnight, so comparing it alone against `now` marks every slot
+ * happening later today as already past. That removed same-day events from the
+ * listing and refused registration for them with "This slot has already
+ * passed" — on the one day the event matters most. The reminder cron already
+ * combined the two; the user-facing paths did not.
+ */
+function slotStartsAt(slot: IEventSlot): Date {
+  const at = new Date(slot.date);
+  const [h, m] = String(slot.startTime ?? '00:00').split(':').map(Number);
+  at.setHours(h || 0, m || 0, 0, 0);
+  return at;
+}
 
 /**
  * Returns true if a slot is currently ongoing (startTime ≤ now ≤ endTime on slot date).
@@ -203,8 +226,8 @@ export const getPublishedEvents = asyncHandler(
     }
 
     const annotated = events.map((event) => {
-      const allSlotsInPast = event.slots.every((s) => new Date(s.date) < now);
-      const hasFutureSlot = event.slots.some((s) => new Date(s.date) >= now);
+      const allSlotsInPast = event.slots.every((s) => slotStartsAt(s) < now);
+      const hasFutureSlot = event.slots.some((s) => slotStartsAt(s) >= now);
       const myReg = myRegMap.get(event._id.toString());
       const isRegistered = !!myReg;
       // Read status from the linked Order, fall back to EventRegistration.status
@@ -247,7 +270,7 @@ export const getPublishedEvents = asyncHandler(
     if (tab === "all") {
       // Show all events that have at least one future slot (registered or not)
       result = annotated.filter((e) =>
-        e.slots.some((s) => new Date(s.date) >= now),
+        e.slots.some((s) => slotStartsAt(s) >= now),
       );
     } else if (tab === "upcoming") {
       result = annotated.filter((e) => e.status === "upcoming");
@@ -259,7 +282,7 @@ export const getPublishedEvents = asyncHandler(
     result.sort((a, b) => {
       const nearest = (slots: IEventSlot[]) => {
         const futureDates = slots
-          .map((s) => new Date(s.date).getTime())
+          .map((s) => slotStartsAt(s).getTime())
           .filter((t) => t >= now.getTime());
         return futureDates.length ? Math.min(...futureDates) : Infinity;
       };
@@ -407,17 +430,42 @@ export const validateEventCoupon = asyncHandler(
  * Submits a payment and creates a pending EventRegistration.
  * Checks seat availability and prevents duplicate registration for the same slot.
  */
+/**
+ * Confirms a free booking on the spot: QR minted, registration marked approved.
+ *
+ * Mirrors what the admin approval path does for a paid order. There is nothing
+ * for an admin to verify on a ₹0 booking, so making somebody wait in a review
+ * queue for it would delay the seat and gain nobody anything.
+ */
+async function issueFreeRegistrationPass(
+  orderId: string,
+  registrationId: unknown,
+): Promise<void> {
+  const qrToken = uuidv4();
+  const qrCodeImage = await QRCode.toDataURL(qrToken, {
+    errorCorrectionLevel: "H",
+    margin: 2,
+    width: 300,
+  });
+
+  await EventRegistration.updateOne(
+    { _id: registrationId },
+    { status: "approved", qrToken, qrCodeImage },
+  );
+
+  // Same confirmation mail a paid approval sends, so a free attendee gets the
+  // same pass in their inbox. Fire-and-forget: mail must not fail the booking.
+  void notifyOrderStatusChange(orderId, qrCodeImage, String(registrationId));
+}
+
 export const registerForEvent = asyncHandler(
   async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     const { eventId, slotId, transactionId, screenshotUrl, couponCode } =
       req.body;
 
-    if (!eventId || !slotId || !transactionId || !screenshotUrl) {
-      throw new ApiError(
-        400,
-        "Missing required fields: eventId, slotId, transactionId, screenshotUrl",
-      );
+    if (!eventId || !slotId) {
+      throw new ApiError(400, "Missing required fields: eventId, slotId");
     }
 
     // 1. Validate event exists and is published
@@ -430,7 +478,7 @@ export const registerForEvent = asyncHandler(
     if (!slot) throw new ApiError(400, "Invalid slot selected");
 
     // 3. Check slot is still in the future
-    if (new Date(slot.date) < new Date()) {
+    if (slotStartsAt(slot) < new Date()) {
       throw new ApiError(400, "This slot has already passed");
     }
 
@@ -446,9 +494,12 @@ export const registerForEvent = asyncHandler(
       status: { $in: ["pending", "approved"] },
     });
     if (existing) {
+      // Worded to avoid the article entirely — "a approved" was the previous
+      // output, and picking "a"/"an" per status is a rule waiting to break the
+      // next time a status is added.
       throw new ApiError(
         400,
-        `You already have a ${existing.status} registration for this event`,
+        `Your registration for this event is already ${existing.status}.`,
       );
     }
 
@@ -467,7 +518,29 @@ export const registerForEvent = asyncHandler(
       appliedCouponId = result.couponId;
     }
 
-    // 7. Create Order (payment record — consistent with course order flow)
+    // 7. Payment proof, but only when there is something to pay.
+    //
+    // A free event — or one a 100% coupon has taken to zero — used to be
+    // rejected unless the student invented a transaction ID and a screenshot
+    // for a payment they never made. "Free Webinars" is advertised on the home
+    // page, so ₹0 is a real case, not a corner one.
+    const isFree = finalPrice <= 0;
+
+    if (!isFree && (!transactionId?.trim() || !screenshotUrl?.trim())) {
+      throw new ApiError(
+        400,
+        "Missing required fields: transactionId, screenshotUrl",
+      );
+    }
+
+    if (!isFree) {
+      await assertPaymentReferenceUnused(transactionId);
+    }
+
+    // Nothing to verify on a free booking, so it is confirmed outright. Making
+    // an admin approve a ₹0 payment delays the seat for no benefit to anyone.
+    const orderStatus = isFree ? "approved" : "pending";
+
     const order = await Order.create({
       orderType: "event",
       user: userId,
@@ -475,9 +548,9 @@ export const registerForEvent = asyncHandler(
       slotId,
       coupon: appliedCouponId,
       finalPrice,
-      transactionId: transactionId.trim(),
-      screenshotUrl: screenshotUrl.trim(),
-      status: "pending",
+      transactionId: isFree ? `FREE-${uuidv4().slice(0, 8).toUpperCase()}` : transactionId.trim(),
+      screenshotUrl: isFree ? "" : screenshotUrl.trim(),
+      status: orderStatus,
     });
 
     // 8. Create EventRegistration linked to the Order (no payment fields)
@@ -486,8 +559,20 @@ export const registerForEvent = asyncHandler(
       event: eventId,
       slotId,
       order: order._id,
-      status: "pending",
+      status: orderStatus,
     });
+
+    if (isFree) {
+      // Same atomic claim the admin approval path uses — a free event can still
+      // be oversold if two people book the last seat at once.
+      const claimed = await claimSeat(eventId, slotId);
+      if (!claimed) {
+        await Order.deleteOne({ _id: order._id });
+        await EventRegistration.deleteOne({ _id: registration._id });
+        throw new ApiError(409, "That slot filled up just now — no seats left.");
+      }
+      await issueFreeRegistrationPass(order._id.toString(), registration._id);
+    }
 
     // Receipt to the registrant + alert to admins. The email states plainly
     // that the seat is NOT held until an admin approves the payment.

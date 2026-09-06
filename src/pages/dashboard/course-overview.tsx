@@ -5,6 +5,7 @@ import {
   Loader2, Clock, Users, Star, BookOpen, CheckCircle,
   ChevronRight, Tag, Globe, BarChart, AlertCircle, X, QrCode, Upload
 } from 'lucide-react';
+import ImageUpload from '../../components/ui/image-upload';
 
 const difficultyColors: Record<string, string> = {
   beginner: 'bg-green-100 text-green-700',
@@ -252,19 +253,32 @@ export default function CourseOverview() {
             <div className="bg-white rounded-lg border border-rule shadow-sm overflow-hidden">
               {/* Price */}
               <div className="p-6 border-b border-rule-soft">
-                <div className="flex items-baseline gap-3 mb-1">
-                  <span className="text-3xl font-extrabold text-ink">
-                    ₹{finalPrice ?? (course.discountedPrice ?? course.price)}
-                  </span>
-                  {course.discountedPrice && (
-                    <span className="text-base text-faint line-through">₹{course.price}</span>
-                  )}
-                </div>
-                {course.discountedPrice && (
-                  <p className="text-xs text-green-600 font-semibold">
-                    You save ₹{course.price - course.discountedPrice} ({Math.round((1 - course.discountedPrice / course.price) * 100)}% off)
-                  </p>
-                )}
+                {/* Everything below is computed from the price actually payable.
+                    The badge used to read the course's own discount only, so
+                    applying a coupon dropped the price but left the badge saying
+                    a smaller saving — two contradictory numbers side by side. */}
+                {(() => {
+                  const payable = finalPrice ?? course.discountedPrice ?? course.price;
+                  const saved = Math.max(0, course.price - payable);
+                  const pct = course.price > 0 ? Math.round((saved / course.price) * 100) : 0;
+                  return (
+                    <>
+                      <div className="flex items-baseline gap-3 mb-1">
+                        <span className="text-3xl font-extrabold text-ink">
+                          {payable === 0 ? 'Free' : `₹${payable}`}
+                        </span>
+                        {saved > 0 && (
+                          <span className="text-base text-faint line-through">₹{course.price}</span>
+                        )}
+                      </div>
+                      {saved > 0 && (
+                        <p className="text-xs text-green-600 font-semibold">
+                          You save ₹{saved}{pct > 0 ? ` (${pct}% off)` : ''}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Coupon */}
@@ -510,22 +524,16 @@ export default function CourseOverview() {
                         />
                       </div>
 
-                      {/* Screenshot URL */}
-                      <div className="space-y-1.5">
-                        <label className="block text-xs font-semibold text-body">
-                          Screenshot URL <span className="text-declined">*</span>
-                        </label>
-                        <input
-                          type="url"
-                          value={screenshotUrl}
-                          onChange={e => setScreenshotUrl(e.target.value)}
-                          placeholder="https://drive.google.com/…"
-                          className="w-full h-10 px-3 rounded-lg border border-rule text-sm focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink transition"
-                        />
-                        <p className="text-[11px] text-faint">
-                          Upload to Google Drive or Imgur and paste the public link.
-                        </p>
-                      </div>
+                      {/* The picture itself, not a link to it hosted elsewhere. */}
+                      <ImageUpload
+                        value={screenshotUrl}
+                        onChange={setScreenshotUrl}
+                        purpose="payment-screenshot"
+                        disabled={isSubmitting}
+                        required
+                        label="Payment screenshot"
+                        hint="The confirmation screen from your UPI or banking app."
+                      />
 
                       {submitError && (
                         <div className="flex items-start gap-2 bg-declined-wash border border-declined/30 rounded-lg p-3">

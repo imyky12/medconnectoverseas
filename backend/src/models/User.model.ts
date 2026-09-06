@@ -73,6 +73,13 @@ const userSchema = new Schema<IUser>(
     referralCode: {
       type: String,
       unique: true,
+      // Sparse, because a referral code is only minted when onboarding
+      // finishes. Without this, every user still mid-signup carries
+      // `referralCode: null`, and a unique index treats a second null as a
+      // duplicate — so only one person could be part-way through signing up at
+      // any moment. The second person to verify their email was refused
+      // outright. `mobile` directly above already had this for the same reason.
+      sparse: true,
     },
     referredBy: {
       type: Schema.Types.ObjectId,
