@@ -31,8 +31,20 @@ app.use("/api/v1", recordRequestActivity);
 app.use("/api/v1", routes);
 
 // ─── Health Check ──────────────────────────────────────
+//
+// `commit` is what makes this useful to the deploy pipeline, not just to a
+// monitor. A plain "ok" is answered by the *old* instance while the new build
+// is still compiling, so a deploy script polling for 200 would sail straight
+// through and ship a frontend against an API that had not moved yet. Reporting
+// which commit is actually serving lets the workflow wait for the right one.
+//
+// RENDER_GIT_COMMIT is injected by Render; it is absent locally, hence "dev".
 app.get("/health", (_req, res) => {
-  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: "ok",
+    commit: process.env.RENDER_GIT_COMMIT ?? "dev",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ─── Global Error Handler (must be last) ───────────────

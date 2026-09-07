@@ -1,0 +1,131 @@
+name: Deploy
+
+# Only main ships. `workflow_dispatch` is there so a deploy can be re-run from
+# the Actions tab without an empty commit.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time. `cancel-in-progress` stays off on purpose: killing a
+# half-finished release is worse than making the next one queue behind it.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  # ── Gate ───────────────────────────────────────────────────────────────────
+  # Both halves must compile before either is deployed. Render would fail its
+  # own build anyway, but failing here means we never start a deploy we already
+  # know is broken — and never ship a frontend against an API that didn't move.
+  check:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Typecheck frontend
+        run: npx tsc -b
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Typecheck backend
+        run: npx tsc --noEmit
+        working-directory: backend
+
+  # ── Backend ────────────────────────────────────────────────────────────────
+  # Deployed first. The new frontend may call endpoints the old API does not
+  # have, so the API goes live before the UI that depends on it.
+  backend:
+    name: Deploy API to Render
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+      - name: Wait for this commit to be live
+        env:
+          API_URL: ${{ secrets.RENDER_SERVICE_URL }}
+          EXPECTED: ${{ github.sha }}
+        run: |
+          # Waiting for HTTP 200 alone would be meaningless: while Render builds,
+          # the PREVIOUS instance is still up and answering 200 quite happily, so
+          # the poll would pass in seconds and the frontend would deploy against
+          # the old API — exactly what this job exists to prevent.
+          #
+          # /health reports the commit it is running (RENDER_GIT_COMMIT), so we
+          # wait for our own SHA to appear. A free instance builds slowly and may
+          # be cold-starting on top of that, hence the generous ceiling.
+          echo "Waiting for $EXPECTED at $API_URL/health …"
+          for attempt in $(seq 1 60); do
+            body=$(curl -s --max-time 30 "$API_URL/health" || true)
+            live=$(printf '%s' "$body" | sed -n 's/.*"commit":"\([^"]*\)".*/\1/p')
+
+            if [ "$live" = "$EXPECTED" ]; then
+              echo "Live on $live after ~$((attempt * 15))s"
+              exit 0
+            fi
+
+            if [ -n "$live" ]; then
+              echo "  attempt $attempt: still serving ${live:0:7}"
+            else
+              echo "  attempt $attempt: no response yet"
+            fi
+            sleep 15
+          done
+
+          echo "::error::$EXPECTED was not live within 15 minutes. Check the Render deploy log."
+          exit 1
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  frontend:
+    name: Deploy site to Netlify
+    needs: backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        env:
+          # Vite bakes env vars into the bundle at build time, so this has to be
+          # present here — setting it in Netlify's UI would do nothing, because
+          # Netlify is not the thing running the build.
+          #
+          # It ends up readable in the shipped JavaScript. That is fine: it is a
+          # public API address, not a credential. Nothing secret belongs in a
+          # VITE_ variable.
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: npm run build
+
+      - name: Deploy to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          npx --yes netlify-cli@latest deploy \
+            --prod \
+            --dir=dist \
+            --message "${GITHUB_SHA::7} — ${GITHUB_ACTOR}"
