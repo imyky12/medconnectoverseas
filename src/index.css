@@ -117,4 +117,225 @@
   body {
     @apply bg-background text-foreground;
   }
+  button,
+  a,
+  select,
+  [role="button"],
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MedConnects — "Rotation Board" design layer
+   ───────────────────────────────────────────────────────────────────────────
+   Medical training runs on rotas and ward boards: time and status are the
+   organising facts. Two devices carry the whole product —
+
+     1. the status spine  — a rule on the left edge of anything actionable,
+                            coloured by state, so a screen reads peripherally
+     2. time as the axis  — dated agenda rows grouped by month, not a card grid
+
+   The spine appears ONLY on objects with a state the user acts on.
+   Static content gets none, or it becomes decoration.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Ground + structure */
+  --color-ink: #071a33;
+  --color-ink-soft: #1c3557;
+  --color-paper: #f3f5f8;
+  --color-surface: #ffffff;
+  --color-rule: #d8e0ea;
+  --color-rule-soft: #e9eef4;
+
+  /* Text */
+  --color-body: #16283f;
+  --color-muted: #5b6b80;
+  --color-faint: #8a99ab;
+
+  /* The single primary action per view — used sparingly */
+  --color-signal: #1e6ff1;
+  --color-signal-deep: #1558c4;
+  --color-signal-wash: #e8f0fe;
+
+  /* States. Deliberately deeper and less saturated than the stock
+     green-600 / amber-500 / red-500 kit. */
+  --color-confirmed: #0e7c66;
+  --color-confirmed-wash: #e3f2ee;
+  --color-holding: #a8642a;
+  --color-holding-wash: #fbf0e4;
+  --color-declined: #a4322a;
+  --color-declined-wash: #fbeae8;
+
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-paper);
+    color: var(--color-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Headings and every figure carry Archivo. Tabular numerals keep money,
+     seat counts and dates aligned down a column.
+
+     No colour here on purpose: an element-type rule beats inheritance, so
+     forcing ink made every heading on a dark surface — the navy footer, the
+     hero — render near-black on near-black. Headings take their colour from
+     their surroundings; anything needing a specific one says so with a
+     utility class, which every dashboard and admin heading already does. */
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.018em;
+  }
+  .tabular {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+@layer components {
+  /* ── The status spine ────────────────────────────────────────────────────
+     A left rule that encodes state structurally. Put it on rows and panels
+     the user can act on. */
+  .spine {
+    position: relative;
+    padding-left: 1.25rem;
+  }
+  .spine::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--color-rule);
+  }
+  .spine-signal::before    { background: var(--color-signal); }
+  .spine-confirmed::before { background: var(--color-confirmed); }
+  .spine-holding::before   { background: var(--color-holding); }
+  .spine-declined::before  { background: var(--color-declined); }
+  .spine-past::before      { background: var(--color-rule); }
+
+  /* ── State text ─────────────────────────────────────────────────────────
+     A word in the state colour reads faster than a pill and adds no chrome. */
+  .state {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: -0.01em;
+  }
+  .state-confirmed { color: var(--color-confirmed); }
+  .state-holding   { color: var(--color-holding); }
+  .state-declined  { color: var(--color-declined); }
+  .state-muted     { color: var(--color-faint); }
+
+  /* ── Agenda row ─────────────────────────────────────────────────────────
+     The workhorse: a dated row in a time-ordered list. */
+  .agenda-row {
+    display: grid;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem 1rem 0;
+    border-bottom: 1px solid var(--color-rule-soft);
+    transition: background-color 120ms ease;
+  }
+  .agenda-row:hover { background-color: #fafcfe; }
+  .agenda-row:last-child { border-bottom: 0; }
+
+  /* ── Panel ──────────────────────────────────────────────────────────────
+     Used where an object genuinely is self-contained. Not the default
+     wrapper for everything. */
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: 10px;
+  }
+
+  /* ── Focus ──────────────────────────────────────────────────────────────*/
+  .focusable:focus-visible,
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Rendered Markdown ───────────────────────────────────────────────────────
+   Used by the legal pages and the admin editor preview. Scoped to `.md-body`
+   so it cannot leak into the rest of the app, and written against the design
+   tokens so a policy page reads like the site rather than like a raw document. */
+.md-body { color: var(--color-body); line-height: 1.7; }
+.md-body > *:first-child { margin-top: 0; }
+.md-body h1 {
+  font-family: var(--font-display); font-size: 27px; font-weight: 600;
+  color: var(--color-ink); letter-spacing: -0.018em; margin: 0 0 6px;
+}
+.md-body h2 {
+  font-family: var(--font-display); font-size: 20px; font-weight: 600;
+  color: var(--color-ink); margin: 26px 0 8px; padding-top: 14px;
+  border-top: 1px solid var(--color-rule-soft);
+}
+/* The first section sits right under the document title — the rule and the
+   large gap above it were separating it from nothing. */
+.md-body > h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.md-body h3 {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600;
+  color: var(--color-ink); margin: 22px 0 8px;
+}
+.md-body p { margin: 0 0 14px; font-size: 15px; }
+.md-body ul, .md-body ol { margin: 0 0 16px; padding-left: 22px; }
+.md-body li { margin: 0 0 7px; font-size: 15px; }
+/* Nested lists are used for the refund exclusions — keep them visually subordinate. */
+.md-body li > ul, .md-body li > ol { margin: 7px 0 0; }
+.md-body a { color: var(--color-signal); text-decoration: none; font-weight: 500; }
+.md-body a:hover { text-decoration: underline; }
+.md-body strong { color: var(--color-ink); font-weight: 600; }
+.md-body em { color: var(--color-muted); }
+.md-body hr { border: 0; border-top: 1px solid var(--color-rule); margin: 28px 0; }
+.md-body blockquote {
+  margin: 0 0 16px; padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--color-rule); color: var(--color-muted);
+}
+.md-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+  background: var(--color-paper); padding: 2px 5px; border-radius: 4px;
+}
+.md-body table { width: 100%; border-collapse: collapse; margin: 0 0 16px; font-size: 14px; }
+.md-body th, .md-body td { border: 1px solid var(--color-rule); padding: 8px 10px; text-align: left; }
+.md-body th { background: var(--color-paper); font-weight: 600; color: var(--color-ink); }
+
+/* Printing a legal document is a real thing people do — a signed-off copy for
+   their records. Strip the site chrome and let the text flow. */
+@media print {
+  nav, header, footer, aside { display: none !important; }
+  .md-body { font-size: 11pt; }
+  .md-body h2 { page-break-after: avoid; }
+  .md-body li, .md-body p { page-break-inside: avoid; }
+  article > div { border: 0 !important; padding: 0 !important; }
+}
+
+/* The sidebar nav still scrolls when it outgrows a short viewport, but without
+   a visible bar. Even styled down it drew a near-full-height line beside the
+   navy panel — the overflow is usually only a hundred pixels or so, which makes
+   the thumb almost as tall as the track, so it reads as a border rather than as
+   a scrollbar. Nothing is hidden by removing it: the list is short and the
+   wheel, trackpad and keyboard all still work. */
+.nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.nav-scroll::-webkit-scrollbar { width: 0; height: 0; }

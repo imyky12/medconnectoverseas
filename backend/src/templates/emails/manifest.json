@@ -1,0 +1,413 @@
+[
+  {
+    "key": "auth-login-otp",
+    "file": "auth-login-otp.html",
+    "subject": "{{otp}} is your MedConnect Overseas login code",
+    "preheader": "Your one-time password expires in {{expiry_minutes}} minutes.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": true,
+    "trigger": "user/auth.controller.ts → requestOtp",
+    "variables": [
+      "first_name",
+      "otp",
+      "expiry_minutes"
+    ]
+  },
+  {
+    "key": "newsletter-access-otp",
+    "file": "newsletter-access-otp.html",
+    "subject": "{{otp}} is your code for {{newsletter_title}}",
+    "preheader": "Enter this code to open the issue. It expires in {{expiry_minutes}} minutes.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": true,
+    "trigger": "newsletter.controller.ts → requestNewsletterAccess",
+    "variables": [
+      "otp",
+      "newsletter_title",
+      "expiry_minutes"
+    ]
+  },
+  {
+    "key": "auth-welcome",
+    "file": "auth-welcome.html",
+    "subject": "Welcome aboard, {{first_name}} — your MCO journey starts here",
+    "preheader": "Your account is ready. Grab your referral code and pick your first course.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "user/profile.controller.ts → onboarding",
+    "variables": [
+      "first_name",
+      "referral_code"
+    ]
+  },
+  {
+    "key": "account-suspended",
+    "file": "account-suspended.html",
+    "subject": "Your MedConnect Overseas account has been suspended",
+    "preheader": "Access is paused for now. Here is how to get it reviewed.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/user.controller.ts → toggleUserStatus (isActive → false)",
+    "variables": [
+      "first_name",
+      "email",
+      "suspended_on",
+      "reason"
+    ]
+  },
+  {
+    "key": "account-reactivated",
+    "file": "account-reactivated.html",
+    "subject": "You're back in — your MCO account is active again",
+    "preheader": "Your access has been restored. Everything is right where you left it.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/user.controller.ts → toggleUserStatus (isActive → true)",
+    "variables": [
+      "first_name",
+      "reactivated_on"
+    ]
+  },
+  {
+    "key": "admin-login-otp",
+    "file": "admin-login-otp.html",
+    "subject": "{{otp}} is your MedConnect Overseas admin code",
+    "preheader": "Someone entered your admin password. This code expires in {{expiry_minutes}} minutes.",
+    "audience": "admin",
+    "category": "transactional",
+    "sensitive": true,
+    "trigger": "admin/auth.controller.ts → adminLogin (second factor)",
+    "variables": [
+      "admin_name",
+      "otp",
+      "expiry_minutes",
+      "ip_address",
+      "requested_at"
+    ]
+  },
+  {
+    "key": "admin-password-reset",
+    "file": "admin-password-reset.html",
+    "subject": "Reset your MedConnect Overseas admin password",
+    "preheader": "This secure link expires in {{expiry_minutes}} minutes.",
+    "audience": "admin",
+    "category": "transactional",
+    "sensitive": true,
+    "trigger": "admin/auth.controller.ts → requestPasswordReset (to be built)",
+    "variables": [
+      "admin_name",
+      "reset_url",
+      "expiry_minutes",
+      "ip_address",
+      "requested_at"
+    ]
+  },
+  {
+    "key": "order-submitted-course",
+    "file": "order-submitted-course.html",
+    "subject": "Payment received — we're verifying your {{course_title}} order",
+    "preheader": "Manual verification usually takes {{verification_window}}. We will email you the moment it clears.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "user/order.controller.ts → createOrder",
+    "variables": [
+      "first_name",
+      "course_title",
+      "order_id",
+      "final_price",
+      "transaction_id",
+      "submitted_on",
+      "verification_window"
+    ]
+  },
+  {
+    "key": "order-submitted-event",
+    "file": "order-submitted-event.html",
+    "subject": "You're on the list for {{event_title}} — pending verification",
+    "preheader": "Your seat is reserved only after we verify your payment. We will confirm shortly.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "user/event.controller.ts → registerForEvent",
+    "variables": [
+      "first_name",
+      "event_title",
+      "event_code",
+      "slot_date",
+      "slot_time",
+      "event_location",
+      "order_id",
+      "final_price",
+      "transaction_id",
+      "submitted_on"
+    ]
+  },
+  {
+    "key": "order-approved-course",
+    "file": "order-approved-course.html",
+    "subject": "You're in! {{course_title}} is now unlocked",
+    "preheader": "Payment verified. Your course is ready whenever you are.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/order.controller.ts → updateOrderStatus (approved, orderType: course)",
+    "variables": [
+      "first_name",
+      "course_title",
+      "order_id",
+      "final_price",
+      "approved_on",
+      "course_url"
+    ]
+  },
+  {
+    "key": "order-approved-event",
+    "file": "order-approved-event.html",
+    "subject": "Seat confirmed for {{event_title}} — here is your entry QR",
+    "preheader": "Your QR code is inside. It is scanned at entry, so keep this email handy.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/order.controller.ts → updateOrderStatus (approved, orderType: event)",
+    "variables": [
+      "first_name",
+      "event_title",
+      "event_code",
+      "slot_date",
+      "slot_time",
+      "event_location",
+      "registration_id",
+      "qr_code_url"
+    ]
+  },
+  {
+    "key": "order-rejected",
+    "file": "order-rejected.html",
+    "subject": "Action needed: we couldn't verify your payment",
+    "preheader": "Your order for {{item_title}} could not be approved. Here is what to do next.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/order.controller.ts → updateOrderStatus (rejected)",
+    "variables": [
+      "first_name",
+      "item_title",
+      "order_id",
+      "final_price",
+      "transaction_id",
+      "rejection_reason",
+      "reviewed_on",
+      "retry_url"
+    ]
+  },
+  {
+    "key": "admin-order-new",
+    "file": "admin-order-new.html",
+    "subject": "[MCO] New {{order_type}} payment awaiting review — ₹{{final_price}}",
+    "preheader": "{{user_name}} submitted a payment for {{item_title}}. Verify it in the admin panel.",
+    "audience": "admin",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "user/order.controller.ts → createOrder AND user/event.controller.ts → registerForEvent",
+    "variables": [
+      "order_type",
+      "item_title",
+      "user_name",
+      "user_email",
+      "user_mobile",
+      "order_id",
+      "final_price",
+      "transaction_id",
+      "submitted_on",
+      "admin_order_url",
+      "screenshot_url"
+    ]
+  },
+  {
+    "key": "event-reminder",
+    "file": "event-reminder.html",
+    "subject": "{{event_title}} is {{reminder_phrase}}",
+    "preheader": "{{slot_date}} at {{slot_time}}. Your entry QR is in your confirmation email.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "jobs/reminderCron.ts → processReminders (all four offsets)",
+    "variables": [
+      "first_name",
+      "event_title",
+      "event_code",
+      "reminder_label",
+      "reminder_phrase",
+      "slot_date",
+      "slot_time",
+      "event_mode",
+      "event_location",
+      "ticket_url"
+    ]
+  },
+  {
+    "key": "event-updated",
+    "file": "event-updated.html",
+    "subject": "Schedule change for {{event_title}} — please check the new timing",
+    "preheader": "New date and time inside. Your registration and QR code stay valid.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/event.controller.ts → updateEvent (slot date/time changed)",
+    "variables": [
+      "first_name",
+      "event_title",
+      "event_code",
+      "old_slot_date",
+      "old_slot_time",
+      "new_slot_date",
+      "new_slot_time",
+      "event_location",
+      "change_note",
+      "ticket_url"
+    ]
+  },
+  {
+    "key": "event-cancelled",
+    "file": "event-cancelled.html",
+    "subject": "{{event_title}} has been cancelled — here is what happens next",
+    "preheader": "We are sorry. Your refund details are inside.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/event.controller.ts → deleteEvent / unpublish",
+    "variables": [
+      "first_name",
+      "event_title",
+      "event_code",
+      "slot_date",
+      "cancellation_reason",
+      "refund_note"
+    ]
+  },
+  {
+    "key": "event-attendance-confirmed",
+    "file": "event-attendance-confirmed.html",
+    "subject": "Thanks for attending {{event_title}} — your certificate is ready",
+    "preheader": "Your attendance is recorded. Download your certificate and session notes.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/eventRegistration.controller.ts → scanAttendance",
+    "variables": [
+      "first_name",
+      "event_title",
+      "event_code",
+      "attended_on",
+      "certificate_url",
+      "notes_url"
+    ]
+  },
+  {
+    "key": "referral-signup",
+    "file": "referral-signup.html",
+    "subject": "{{referred_name}} just joined using your code",
+    "preheader": "That is {{referred_count}} people you have brought to MCO. Your reward unlocks on their first enrolment.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "user/profile.controller.ts → onboarding (referrer resolved)",
+    "variables": [
+      "first_name",
+      "referred_name",
+      "joined_on",
+      "referral_code",
+      "referred_count"
+    ]
+  },
+  {
+    "key": "referral-converted",
+    "file": "referral-converted.html",
+    "subject": "Your referral just enrolled — reward unlocked",
+    "preheader": "{{referred_name}} enrolled in {{item_title}}. Here is your reward code.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "admin/order.controller.ts → updateOrderStatus (approved, referred user first purchase)",
+    "variables": [
+      "first_name",
+      "referred_name",
+      "item_title",
+      "reward_code",
+      "reward_value",
+      "referral_code"
+    ]
+  },
+  {
+    "key": "newsletter-welcome",
+    "file": "newsletter-welcome.html",
+    "subject": "You're on the list — MedConnect Overseas insider access",
+    "preheader": "Licensing deadlines, scholarship windows and new batches, before they go public.",
+    "audience": "user",
+    "category": "marketing",
+    "sensitive": false,
+    "trigger": "newsletter.controller.ts → subscribe (endpoint not built yet)",
+    "variables": [
+      "email"
+    ]
+  },
+  {
+    "key": "newsletter-issue",
+    "file": "newsletter-issue.html",
+    "subject": "Med Nexus — {{newsletter_title}}",
+    "preheader": "{{newsletter_summary}}",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "newsletter.controller.ts → notifySubscribers",
+    "variables": [
+      "newsletter_title",
+      "newsletter_edition",
+      "newsletter_summary",
+      "download_url"
+    ]
+  },
+  {
+    "key": "contact-ack",
+    "file": "contact-ack.html",
+    "subject": "We've got your message — MedConnect Overseas",
+    "preheader": "Reference {{ticket_id}}. Our team replies within {{response_window}}.",
+    "audience": "user",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "contact.controller.ts → submitEnquiry (endpoint not built yet)",
+    "variables": [
+      "name",
+      "ticket_id",
+      "enquiry_subject",
+      "message",
+      "submitted_on",
+      "response_window"
+    ]
+  },
+  {
+    "key": "admin-contact-new",
+    "file": "admin-contact-new.html",
+    "subject": "[MCO] New enquiry from {{name}} — {{enquiry_subject}}",
+    "preheader": "{{name}} ({{email}}) submitted a contact form enquiry.",
+    "audience": "admin",
+    "category": "transactional",
+    "sensitive": false,
+    "trigger": "contact.controller.ts → submitEnquiry (endpoint not built yet)",
+    "variables": [
+      "name",
+      "email",
+      "mobile",
+      "enquiry_subject",
+      "message",
+      "submitted_on",
+      "ticket_id"
+    ]
+  }
+]
