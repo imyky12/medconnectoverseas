@@ -156,6 +156,7 @@ jobs:
           echo "Bundle is clean."
 
       - name: Deploy to Netlify
+        id: netlify
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
@@ -163,4 +164,34 @@ jobs:
           npx --yes netlify-cli@latest deploy \
             --prod \
             --dir=dist \
-            --message "${GITHUB_SHA::7} — ${GITHUB_ACTOR}"
+            --message "${GITHUB_SHA::7} — ${GITHUB_ACTOR}" \
+            --json > deploy.json
+          url=$(jq -r '.ssl_url // .url // empty' deploy.json)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to ${url:-unknown}"
+
+      # Checking dist/ before upload proved not to be enough: a Netlify-side
+      # rebuild once replaced the good bundle *during* the deploy, so every
+      # earlier check passed and the live site was still wrong. This one asks the
+      # published site what it is actually serving, which is the only claim worth
+      # making.
+      - name: Verify the live site calls the right API
+        run: |
+          url="${{ steps.netlify.outputs.url }}"
+          if [ -z "$url" ]; then
+            echo "::error::Could not determine the deploy URL from the Netlify CLI output."
+            exit 1
+          fi
+
+          asset=$(curl -fsSL "$url" | grep -o '/assets/index-[^"]*\.js' | head -1)
+          if [ -z "$asset" ]; then
+            echo "::error::index.html on $url references no main bundle."
+            exit 1
+          fi
+          echo "index.html references $asset"
+
+          if curl -fsSL "$url$asset" | grep -q "localhost:5000"; then
+            echo "::error::The bundle the live site serves still points at localhost. A second build overwrote the good one — check for a [build] command in netlify.toml."
+            exit 1
+          fi
+          echo "Live site is calling the deployed API."

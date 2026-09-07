@@ -1,16 +1,19 @@
 # Netlify configuration for the frontend (the Vite SPA at the repo root).
 #
-# The build itself runs in GitHub Actions (.github/workflows/deploy.yml), which
-# uploads the finished `dist/` — the settings below still apply to whatever is
-# served, and they keep the site buildable from Netlify's own CI if the workflow
-# is ever bypassed.
+# The build runs in GitHub Actions (.github/workflows/deploy.yml) and the CLI
+# uploads the finished `dist/`. Everything below describes how those files are
+# *served* — nothing here builds anything.
+#
+# There is deliberately no `command` key. With one present, `netlify deploy`
+# runs it through @netlify/build as part of the upload — a second build, inside
+# Netlify, where VITE_API_URL does not exist. That rebuild regenerated
+# index.html against the localhost fallback and shipped it over the good bundle,
+# which is exactly the bug this comment exists to prevent someone re-creating.
+# If you ever want Netlify to build the site itself, it needs VITE_API_URL in
+# its own environment first.
 
 [build]
-  command = "npm run build"
   publish = "dist"
-
-[build.environment]
-  NODE_VERSION = "22"
 
 # React Router owns the URLs. Without this, a visitor who lands directly on
 # /admin/login or /dashboard/events — a bookmark, a refresh, a link from an
