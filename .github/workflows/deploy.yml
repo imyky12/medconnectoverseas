@@ -161,8 +161,14 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: |
+          # --no-build is load-bearing. Without it the CLI auto-detects Vite and
+          # runs its own build inside Netlify, where VITE_API_URL does not exist
+          # — silently replacing the bundle we just built and verified with one
+          # pointing at localhost. Removing the build command from netlify.toml
+          # is not enough; framework detection still kicks in.
           npx --yes netlify-cli@latest deploy \
             --prod \
+            --no-build \
             --dir=dist \
             --message "${GITHUB_SHA::7} — ${GITHUB_ACTOR}" \
             --json > deploy.json
