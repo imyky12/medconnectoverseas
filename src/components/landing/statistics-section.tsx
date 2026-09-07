@@ -4,7 +4,8 @@ import type React from "react";
 import { motion } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 import { useEffect, useState } from "react";
-import { Users, Award, BookOpen, Globe, Heart, Zap } from "lucide-react";
+import { Users, Award, BookOpen, Globe, Star, Calendar } from "lucide-react";
+import { useSiteContent, type ContentItem } from "@/hooks/useSiteContent";
 
 interface StatItem {
   number: number;
@@ -18,55 +19,28 @@ interface StatItem {
 export default function StatisticsSection() {
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.3 });
 
-  const stats: StatItem[] = [
-    {
-      number: 50,
-      label: "Workshops",
-      icon: BookOpen,
-      color: "text-yellow-400",
-      bgColor: "bg-gradient-to-br from-yellow-400/20 to-orange-400/20",
-      suffix: "+",
-    },
-    {
-      number: 10,
-      label: "Speakers",
-      icon: Award,
-      color: "text-cyan-400",
-      bgColor: "bg-gradient-to-br from-cyan-400/20 to-blue-400/20",
-      suffix: "+",
-    },
-    {
-      number: 100,
-      label: "Participants",
-      icon: Users,
-      color: "text-green-400",
-      bgColor: "bg-gradient-to-br from-green-400/20 to-emerald-400/20",
-      suffix: "+",
-    },
-    {
-      number: 3,
-      label: "Countries",
-      icon: Globe,
-      color: "text-purple-400",
-      bgColor: "bg-gradient-to-br from-purple-400/20 to-pink-400/20",
-      suffix: "+",
-    },
-    {
-      number: 100,
-      label: "Success Stories",
-      icon: Heart,
-      color: "text-pink-400",
-      bgColor: "bg-gradient-to-br from-pink-400/20 to-rose-400/20",
-      suffix: "+",
-    },
-    {
-      number: 12,
-      label: "Monthly Events",
-      icon: Zap,
-      color: "text-orange-400",
-      bgColor: "bg-gradient-to-br from-orange-400/20 to-amber-400/20",
-    },
+  const { content } = useSiteContent();
+
+  /**
+   * Icons and colours are decoration chosen here, not content an admin edits —
+   * cycled by position so a new figure looks like the others without anyone
+   * having to pick a swatch.
+   */
+  const LOOK = [
+    { icon: BookOpen, color: 'text-yellow-400', bgColor: 'bg-gradient-to-br from-yellow-400/20 to-orange-400/20' },
+    { icon: Award, color: 'text-cyan-400', bgColor: 'bg-gradient-to-br from-cyan-400/20 to-blue-400/20' },
+    { icon: Users, color: 'text-green-400', bgColor: 'bg-gradient-to-br from-green-400/20 to-emerald-400/20' },
+    { icon: Globe, color: 'text-purple-400', bgColor: 'bg-gradient-to-br from-purple-400/20 to-pink-400/20' },
+    { icon: Star, color: 'text-pink-400', bgColor: 'bg-gradient-to-br from-pink-400/20 to-rose-400/20' },
+    { icon: Calendar, color: 'text-blue-400', bgColor: 'bg-gradient-to-br from-blue-400/20 to-indigo-400/20' },
   ];
+
+  const stats: StatItem[] = content.stat.map((row: ContentItem, i: number) => ({
+    number: row.value ?? 0,
+    label: row.heading,
+    suffix: row.suffix ?? '',
+    ...LOOK[i % LOOK.length],
+  }));
 
   return (
     // The heading belongs to the section that wraps this component in

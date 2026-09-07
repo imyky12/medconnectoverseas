@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Linkedin, Twitter, Mail } from "lucide-react";
-import { FOUNDER_SOCIALS } from "../../constants/social";
+import { useSiteContent, type ContentItem } from "@/hooks/useSiteContent";
 
 interface CoFounder {
   name: string;
@@ -15,28 +15,17 @@ interface CoFounder {
 }
 
 export default function CoFounders() {
-  const coFounders: CoFounder[] = [
-    {
-      name: "Astha Singh Sengar",
-      role: "Co-Founder & CTO",
-      description:
-        "Astha founded MedConnectsOverseas with a vision to build a supportive community for medical students worldwide.",
-      image: "/images/founder.png",
-      linkedin: FOUNDER_SOCIALS["Astha Singh Sengar"]?.linkedin,
-      twitter: FOUNDER_SOCIALS["Astha Singh Sengar"]?.twitter,
-      email: "ashta.sengar@medconnectsoverseas.com",
-    },
-    {
-      name: "Bhavy Gaba",
-      role: "Co-Founder & CEO",
-      description:
-        "Bhavy leads curriculum and mentorship initiatives, ensuring the highest academic standards and student success.",
-      image: "/images/founder2.png",
-      linkedin: FOUNDER_SOCIALS["Bhavy Gaba"]?.linkedin,
-      twitter: FOUNDER_SOCIALS["Bhavy Gaba"]?.twitter,
-      email: "bhavygaba@medconnectsoverseas.com",
-    },
-  ];
+  const { content } = useSiteContent();
+
+  const coFounders: CoFounder[] = content.founder.map((f: ContentItem) => ({
+    name: f.heading,
+    role: f.subheading ?? '',
+    description: f.body ?? '',
+    image: f.imageUrl ?? '/images/founder.png',
+    linkedin: f.linkedinUrl ?? '',
+    twitter: f.twitterUrl ?? '',
+    email: f.email ?? '',
+  }));
 
   return (
     <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12 md:gap-16 max-w-6xl mx-auto">

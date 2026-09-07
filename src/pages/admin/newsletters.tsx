@@ -255,9 +255,9 @@ This issue was already sent on ${new Date(row.notifiedAt).toLocaleString('en-GB'
       )}
 
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/60 p-4 sm:p-8">
-          <div className="w-full max-w-[640px] rounded-2xl bg-surface">
-            <div className="flex items-center justify-between border-b border-rule-soft px-6 py-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 sm:p-6">
+          <div className="flex max-h-full w-full max-w-[640px] flex-col overflow-hidden rounded-2xl bg-surface">
+            <div className="flex shrink-0 items-center justify-between border-b border-rule-soft px-6 py-4">
               <h2 className="font-display text-[18px] font-600 text-ink">
                 {editing._id ? 'Edit issue' : 'New issue'}
               </h2>
@@ -266,7 +266,7 @@ This issue was already sent on ${new Date(row.notifiedAt).toLocaleString('en-GB'
               </button>
             </div>
 
-            <div className="space-y-5 px-6 py-5">
+            <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
                 <Field label="Title" required>
                   <input
@@ -346,7 +346,7 @@ This issue was already sent on ${new Date(row.notifiedAt).toLocaleString('en-GB'
               </label>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-rule-soft px-6 py-4">
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-rule-soft px-6 py-4">
               <button onClick={() => setEditing(null)} className="rounded-md px-4 py-2.5 text-[14px] font-medium text-muted transition-colors hover:text-ink">
                 Cancel
               </button>

@@ -9,6 +9,7 @@ import { env } from './config/env';
 import { startReminderCron } from './jobs/reminderCron';
 import { startEmailWorker } from './jobs/emailWorker';
 import { seedPolicies } from './utils/seedPolicies';
+import { seedSiteContent } from './utils/seedSiteContent';
 
 const startServer = async (): Promise<void> => {
   try {
@@ -19,6 +20,7 @@ const startServer = async (): Promise<void> => {
     // A no-op once they exist — the database is the source of truth after the
     // first boot, and re-seeding would discard the admin's edits.
     await seedPolicies();
+    await seedSiteContent();
 
     // Start background jobs
     startReminderCron();

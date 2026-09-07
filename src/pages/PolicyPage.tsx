@@ -99,6 +99,10 @@ export default function PolicyPage({ slug, fallbackTitle }: PolicyPageProps) {
     const found: Section[] = [];
     const used = new Set<string>();
 
+    // The document's own H1 repeats the title already in the page header, so it
+    // is dropped rather than shown twice with a gap between the two.
+    doc.querySelector('h1')?.remove();
+
     doc.querySelectorAll('h2').forEach((h) => {
       const text = h.textContent ?? '';
       let id = slugify(text);
@@ -156,9 +160,9 @@ export default function PolicyPage({ slug, fallbackTitle }: PolicyPageProps) {
       <Navbar />
 
       {/* Header. Dark, so the document itself reads as a clean sheet below it. */}
-      <header className="bg-ink px-4 pb-12 pt-12 sm:pb-16 sm:pt-16">
+      <header className="bg-ink px-4 pb-9 pt-8 sm:pb-11 sm:pt-10">
         <div className="mx-auto w-full max-w-[1100px]">
-          <nav className="mb-5 flex items-center gap-2 text-[13px] text-white/50">
+          <nav className="mb-4 flex items-center gap-2 text-[13px] text-white/50">
             <Link to="/" className="transition-colors hover:text-white">Home</Link>
             <span aria-hidden>/</span>
             <span className="text-white/80">{policy?.title ?? fallbackTitle}</span>
@@ -177,7 +181,7 @@ export default function PolicyPage({ slug, fallbackTitle }: PolicyPageProps) {
                   ? 'The terms you agree to when you register for an event, book a workshop, or use anything on this site.'
                   : 'What we collect, why we collect it, and what we do with it.'}
               </p>
-              <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
                 {updated && (
                   <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-medium text-white">
                     Last updated {updated}
@@ -195,7 +199,7 @@ export default function PolicyPage({ slug, fallbackTitle }: PolicyPageProps) {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-10 sm:py-14">
+      <main className="flex-1 px-4 py-8 sm:py-10">
         <div className="mx-auto w-full max-w-[1100px]">
           {loading ? (
             <div className="flex min-h-[40vh] items-center justify-center">
@@ -214,11 +218,11 @@ export default function PolicyPage({ slug, fallbackTitle }: PolicyPageProps) {
               </p>
             </div>
           ) : (
-            <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
+            <div className="grid gap-x-10 gap-y-6 lg:grid-cols-[230px_minmax(0,1fr)]">
               {/* Contents. Sticky on desktop; on small screens it sits above the
                   document as a plain jump list rather than eating the fold. */}
               {sections.length > 1 && (
-                <aside className="lg:sticky lg:top-24 lg:self-start">
+                <aside className="lg:sticky lg:top-20 lg:self-start">
                   <p className="mb-3 text-[12px] font-600 uppercase tracking-wide text-faint">
                     On this page
                   </p>
@@ -243,7 +247,7 @@ export default function PolicyPage({ slug, fallbackTitle }: PolicyPageProps) {
               )}
 
               <article className="min-w-0">
-                <div className="rounded-2xl border border-rule bg-surface px-5 py-7 sm:px-10 sm:py-10">
+                <div className="rounded-2xl border border-rule bg-surface px-5 py-6 sm:px-9 sm:py-8">
                   <div
                     ref={bodyRef}
                     className="md-body"

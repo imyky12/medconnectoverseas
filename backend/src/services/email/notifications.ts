@@ -625,3 +625,33 @@ export async function notifyNewsletterwelcome(email: string): Promise<void> {
     dedupeKey: `newsletter-welcome:${email}`,
   });
 }
+
+/**
+ * The second factor for an admin sign-in.
+ *
+ * `admin-login-otp` is flagged sensitive in the manifest, so the audit row
+ * records that a code was sent and to whom, but never the code itself.
+ *
+ * No dedupeKey: every request mints a fresh code, and "resend" would be
+ * silently swallowed if two sends looked identical.
+ */
+export async function notifyAdminLoginOtp(
+  email: string,
+  adminName: string,
+  otp: string,
+  ipAddress?: string
+): Promise<void> {
+  void enqueue({
+    templateKey: 'admin-login-otp',
+    to: { address: email, name: adminName },
+    merge: {
+      admin_name: adminName?.trim() || 'there',
+      otp,
+      expiry_minutes: env.OTP_EXPIRY_MINUTES,
+      // Shown so an unexpected code carries enough to act on — an address the
+      // recipient does not recognise is the signal that the password is out.
+      ip_address: ipAddress || 'unknown',
+      requested_at: formatDateTime(new Date()),
+    },
+  });
+}

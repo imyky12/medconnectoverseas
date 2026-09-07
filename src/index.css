@@ -284,14 +284,17 @@
 .md-body { color: var(--color-body); line-height: 1.7; }
 .md-body > *:first-child { margin-top: 0; }
 .md-body h1 {
-  font-family: var(--font-display); font-size: 30px; font-weight: 600;
-  color: var(--color-ink); letter-spacing: -0.018em; margin: 0 0 8px;
+  font-family: var(--font-display); font-size: 27px; font-weight: 600;
+  color: var(--color-ink); letter-spacing: -0.018em; margin: 0 0 6px;
 }
 .md-body h2 {
   font-family: var(--font-display); font-size: 20px; font-weight: 600;
-  color: var(--color-ink); margin: 34px 0 10px; padding-top: 18px;
+  color: var(--color-ink); margin: 26px 0 8px; padding-top: 14px;
   border-top: 1px solid var(--color-rule-soft);
 }
+/* The first section sits right under the document title — the rule and the
+   large gap above it were separating it from nothing. */
+.md-body > h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .md-body h3 {
   font-family: var(--font-display); font-size: 16px; font-weight: 600;
   color: var(--color-ink); margin: 22px 0 8px;
@@ -327,3 +330,12 @@
   .md-body li, .md-body p { page-break-inside: avoid; }
   article > div { border: 0 !important; padding: 0 !important; }
 }
+
+/* The sidebar nav still scrolls when it outgrows a short viewport, but without
+   a visible bar. Even styled down it drew a near-full-height line beside the
+   navy panel — the overflow is usually only a hundred pixels or so, which makes
+   the thumb almost as tall as the track, so it reads as a border rather than as
+   a scrollbar. Nothing is hidden by removing it: the list is short and the
+   wheel, trackpad and keyboard all still work. */
+.nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.nav-scroll::-webkit-scrollbar { width: 0; height: 0; }

@@ -1,60 +1,23 @@
-import { ArrowRight, Globe, Heart, BookOpen, Users } from "lucide-react";
+import { Globe, Heart, BookOpen, Users, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useSiteContent, type ContentItem } from "@/hooks/useSiteContent";
 import Navbar from "@/components/landing/navbar";
 import Footer from "@/components/landing/footer";
-import { Link } from "react-router-dom";
 
 export default function ActivitiesPage() {
-  const activities = [
-    {
-      title: "Exploring Georgia",
-      description:
-        "Discover the beautiful landscapes and rich culture of Georgia with fellow medical students.",
-      icon: Globe,
-      link: "/activities/exploring-georgia",
-      image: "/images/exploring-georgia.jpg",
-    },
-    {
-      title: "Treasure Hunt",
-      description:
-        "Engage in exciting treasure hunt competitions that combine fun with medical knowledge.",
-      icon: BookOpen,
-      link: "/activities/treasure-hunt",
-      image: "/images/treasure-hunt.jpg",
-    },
-    {
-      title: "Trekking Adventures",
-      description:
-        "Join our trekking expeditions to promote physical well-being and build lasting connections.",
-      icon: Heart,
-      link: "/activities/trekking",
-      image: "/images/trekking.jpg",
-    },
-    {
-      title: "Med Talks",
-      description:
-        "Attend insightful talks by medical professionals and experts in various healthcare fields.",
-      icon: Users,
-      link: "/activities/med-talks",
-      image: "/images/med-talks.jpg",
-    },
-    {
-      title: "Free Webinars",
-      description:
-        "Participate in our free educational webinars covering diverse medical topics and career guidance.",
-      icon: Globe,
-      link: "/activities/webinars",
-      image: "/images/webinars.jpg",
-    },
-    {
-      title: "Study Sessions",
-      description:
-        "Join collaborative study sessions designed to enhance academic performance and knowledge sharing.",
-      icon: BookOpen,
-      link: "/activities/study-sessions",
-      image: "/images/study-sessions.jpg",
-    },
-  ];
+  const { content } = useSiteContent();
+
+  // Icons stay in code — cycled by position, so adding an activity in the admin
+  // never leaves a card without one.
+  const ICONS = [Globe, BookOpen, Heart, Users];
+
+  const activities = content.activity.map((a: ContentItem, i: number) => ({
+    title: a.heading,
+    description: a.body ?? '',
+    icon: ICONS[i % ICONS.length],
+    image: a.imageUrl || '/placeholder.svg',
+  }));
 
   return (
     <div className="min-h-screen bg-white">
@@ -144,17 +107,6 @@ export default function ActivitiesPage() {
                     <p className="text-gray-600 text-lg">
                       {activity.description}
                     </p>
-                    <div className="pt-4">
-                      <Button
-                        asChild
-                        className="bg-[#041c44] hover:bg-[#041c44]/90"
-                      >
-                        <Link to={activity.link}>
-                          Learn More
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
                   </div>
                 </div>
               ))}
@@ -173,8 +125,12 @@ export default function ActivitiesPage() {
                 Don't miss out on our upcoming events and activities. Join
                 MedConnectsOverseas today!
               </p>
-              <Button className="bg-white text-[#041c44] hover:bg-blue-100">
-                Register Now
+              {/* This had no handler at all — it looked like a call to action
+                  and did nothing when clicked. */}
+              <Button asChild className="bg-white text-[#041c44] hover:bg-blue-100">
+                <Link to="/events">
+                  See upcoming events <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
           </div>

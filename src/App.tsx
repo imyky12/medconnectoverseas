@@ -23,6 +23,7 @@ import AdminLogin from "./pages/admin/login";
 import AdminLayout from "./components/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/dashboard";
 import AdminUsers from "./pages/admin/users";
+import AdminAdministrators from './pages/admin/administrators';
 import AdminCourses from "./pages/admin/courses";
 import AdminAddCourse from "./pages/admin/add-course";
 import AdminCoupons from "./pages/admin/coupons";
@@ -34,6 +35,7 @@ import AdminEventRegistrations from "./pages/admin/event-registrations";
 import AdminPolicies from "./pages/admin/policies";
 import AdminActivity from "./pages/admin/activity";
 import AdminNewsletters from "./pages/admin/newsletters";
+import AdminSiteContent from "./pages/admin/site-content";
 import PolicyPage from "./pages/PolicyPage";
 
 import UserLayout from "./components/dashboard/UserLayout";
@@ -71,6 +73,7 @@ function App() {
            <Route path="dashboard" element={<AdminDashboard />} />
            <Route path="orders" element={<AdminOrders />} />
            <Route path="users" element={<AdminUsers />} />
+           <Route path="administrators" element={<AdminAdministrators />} />
            <Route path="courses" element={<AdminCourses />} />
            <Route path="add-course" element={<AdminAddCourse />} />
            <Route path="coupons" element={<AdminCoupons />} />
@@ -80,6 +83,7 @@ function App() {
            <Route path="events/:id/edit" element={<AdminAddEvent />} />
            <Route path="events/:id/registrations" element={<AdminEventRegistrations />} />
            <Route path="newsletters" element={<AdminNewsletters />} />
+           <Route path="site-content" element={<AdminSiteContent />} />
            <Route path="policies" element={<AdminPolicies />} />
            <Route path="activity" element={<AdminActivity />} />
         </Route>

@@ -40,6 +40,11 @@ router.post('/newsletters/:id/request-access', apiLimiter, requestNewsletterAcce
 router.post('/newsletters/:id/verify-access', apiLimiter, verifyNewsletterAccess);
 router.get('/newsletters/:id/download', downloadNewsletter);
 
+// All the editable landing-page content in one request — five separate calls
+// would give the page five chances to assemble itself in pieces.
+import { getSiteContent } from '../controllers/siteContent.controller';
+router.get('/site-content', getSiteContent);
+
 // Public read of the live legal documents. Drafts are never reachable here.
 import { getPublishedPolicy } from '../controllers/public.controller';
 router.get('/policies/:slug', getPublishedPolicy);

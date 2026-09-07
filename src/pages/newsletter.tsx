@@ -83,13 +83,33 @@ export default function NewsletterPage() {
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      <section className="bg-[#041c44] px-4 py-16 text-white">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h1 className="text-3xl font-bold sm:text-4xl">Med Nexus</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-blue-100">
-            Our newsletter for medical students heading overseas — licensing deadlines, scholarship
-            windows, and what students who have already made the move wish they had known.
-          </p>
+      <section className="overflow-hidden bg-[#041c44] px-4 py-16 text-white sm:py-20 md:py-24">
+        <div className="container mx-auto grid max-w-5xl items-center gap-12 md:grid-cols-2 md:gap-16">
+          <div>
+            <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-blue-300">
+              Our newsletter
+            </p>
+            <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-[36px]">Med Nexus</h1>
+            <p className="mt-3 max-w-xl text-[16px] leading-relaxed text-blue-100">
+              For medical students heading overseas — licensing deadlines, scholarship windows, and
+              what students who have already made the move wish they had known.
+            </p>
+          </div>
+          {/* Framed exactly as the landing page frames the same collage: the two
+              rotated outlines behind a white-bordered, height-capped crop. */}
+          <div className="relative order-first md:order-last">
+            <div className="absolute -left-4 -top-4 h-40 w-40 rotate-6 rounded-2xl border-4 border-blue-400/30 sm:-left-6 sm:-top-6 sm:h-52 sm:w-52 sm:rounded-3xl md:-left-8 md:-top-8 md:h-64 md:w-64"></div>
+            <div className="absolute -bottom-3 -right-3 h-32 w-32 -rotate-6 rounded-2xl border-4 border-cyan-400/30 sm:-bottom-4 sm:-right-4 sm:h-40 sm:w-40 sm:rounded-3xl md:-bottom-6 md:-right-6 md:h-48 md:w-48"></div>
+
+            <div className="relative z-10 h-[280px] overflow-hidden rounded-2xl border-2 border-white sm:h-[340px] sm:rounded-3xl sm:border-4 md:h-[420px]">
+              <img
+                src="/images/newsletter-collage.png"
+                alt="Med Nexus Newsletter"
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-blue-900/30 via-transparent to-transparent" />
+            </div>
+          </div>
         </div>
       </section>
 

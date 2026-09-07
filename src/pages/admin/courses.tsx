@@ -255,10 +255,10 @@ export default function AdminCourses() {
 
       {/* ── Full-featured Edit Modal ── */}
       {editingCourse && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm sm:p-6">
+          <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
             {/* Modal header */}
-            <div className="flex items-center justify-between px-7 py-5 border-b border-rule-soft sticky top-0 bg-white rounded-t-2xl z-10">
+            <div className="flex shrink-0 items-center justify-between border-b border-rule-soft bg-white px-7 py-5">
               <div>
                 <h3 className="text-lg font-bold text-ink">Edit Course</h3>
                 <p className="text-xs font-mono text-faint mt-0.5">{courses.find(c => c._id === editId)?.courseCode}</p>
@@ -266,7 +266,7 @@ export default function AdminCourses() {
               <button onClick={closeEdit} className="text-faint hover:text-body transition-colors"><X className="h-5 w-5" /></button>
             </div>
 
-            <div className="p-7 space-y-7">
+            <div className="flex-1 space-y-7 overflow-y-auto p-7">
               {/* Section: Core */}
               <div>
                 <p className="text-xs font-extrabold text-faint  mb-4">Core Details</p>
@@ -365,7 +365,7 @@ export default function AdminCourses() {
             </div>
 
             {/* Footer actions */}
-            <div className="flex gap-3 px-7 pb-7">
+            <div className="flex shrink-0 gap-3 border-t border-rule-soft px-7 py-5">
               <button onClick={closeEdit} className="flex-1 h-11 border border-rule text-body rounded-lg font-semibold text-sm hover:bg-paper transition-colors">
                 Cancel
               </button>

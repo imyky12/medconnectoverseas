@@ -3,33 +3,25 @@
 import type React from "react";
 
 import { useState } from "react";
-import { ORG_SOCIALS, FOUNDER_SOCIALS, activeLinks } from "../constants/social";
+import { SOCIAL_ICONS } from "../constants/social";
 import { motion } from "framer-motion";
-import {
-  Mail,
-  Phone,
-  MapPin,
-  Send,
-  Linkedin,
-  Twitter,
-  Facebook,
-  Instagram,
-} from "lucide-react";
+import { Mail, Phone, MapPin, Send, Linkedin, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/landing/navbar";
 import Footer from "@/components/landing/footer";
 import { api } from "../services/api";
-
-const SOCIAL_ICONS = {
-  facebook: { Icon: Facebook, label: "Facebook" },
-  twitter: { Icon: Twitter, label: "Twitter" },
-  instagram: { Icon: Instagram, label: "Instagram" },
-  linkedin: { Icon: Linkedin, label: "LinkedIn" },
-} as const;
+import { useSiteContent, contactDetails, socialLinks } from "../hooks/useSiteContent";
 
 export default function ContactPage() {
+  const { content } = useSiteContent();
+  const founders = content.founder;
+  // Address, phone, place and every social profile are settings an admin edits
+  // from the dashboard. Anything left blank is not drawn at all.
+  const contact = contactDetails(content);
+  const socials = socialLinks(content);
+
   const [formState, setFormState] = useState({
     name: "",
     email: "",
@@ -180,47 +172,61 @@ export default function ContactPage() {
                 </p>
 
                 <div className="space-y-6">
-                  <div className="flex items-start">
-                    <div className="bg-[#041c44] p-2 rounded-full mr-4">
-                      <Mail className="h-5 w-5 text-white" />
+                  {contact.email && (
+                    <div className="flex items-start">
+                      <div className="mr-4 rounded-full bg-[#041c44] p-2">
+                        <Mail className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#041c44]">Email</h3>
+                        <a
+                          href={`mailto:${contact.email}`}
+                          className="text-gray-600 hover:text-[#041c44] hover:underline"
+                        >
+                          {contact.email}
+                        </a>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-[#041c44]">Email</h3>
-                      <p className="text-gray-600">
-                        info@medconnectsoverseas.com
-                      </p>
-                    </div>
-                  </div>
+                  )}
 
-                  <div className="flex items-start">
-                    <div className="bg-[#041c44] p-2 rounded-full mr-4">
-                      <Phone className="h-5 w-5 text-white" />
+                  {contact.phone && (
+                    <div className="flex items-start">
+                      <div className="mr-4 rounded-full bg-[#041c44] p-2">
+                        <Phone className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#041c44]">Phone</h3>
+                        <a
+                          href={`tel:${contact.phone.replace(/[^+\d]/g, "")}`}
+                          className="text-gray-600 hover:text-[#041c44] hover:underline"
+                        >
+                          {contact.phone}
+                        </a>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-[#041c44]">Phone</h3>
-                      <p className="text-gray-600">+1 (123) 456-7890</p>
-                    </div>
-                  </div>
+                  )}
 
-                  <div className="flex items-start">
-                    <div className="bg-[#041c44] p-2 rounded-full mr-4">
-                      <MapPin className="h-5 w-5 text-white" />
+                  {contact.location && (
+                    <div className="flex items-start">
+                      <div className="mr-4 rounded-full bg-[#041c44] p-2">
+                        <MapPin className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#041c44]">Location</h3>
+                        <p className="text-gray-600">{contact.location}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-[#041c44]">Location</h3>
-                      <p className="text-gray-600">Tbilisi, Georgia</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                <div className="mt-8">
-                  <h3 className="font-semibold text-[#041c44] mb-4">
-                    Connect With Us
-                  </h3>
-                  {/* Only profiles that actually exist — src/constants/social.ts */}
-                  {activeLinks(ORG_SOCIALS).length > 0 ? (
-                    <div className="flex space-x-4">
-                      {activeLinks(ORG_SOCIALS).map(([key, url]) => {
+                {socials.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="mb-4 font-semibold text-[#041c44]">
+                      Connect With Us
+                    </h3>
+                    {/* Only the profiles an admin has filled in. */}
+                    <div className="flex flex-wrap gap-4">
+                      {socials.map(([key, url]) => {
                         const { Icon, label } = SOCIAL_ICONS[key];
                         return (
                           <a
@@ -228,7 +234,8 @@ export default function ContactPage() {
                             href={url}
                             target="_blank"
                             rel="noreferrer noopener"
-                            className="bg-[#041c44] p-2 rounded-full text-white hover:bg-[#041c44]/80 transition-colors"
+                            title={label}
+                            className="rounded-full bg-[#041c44] p-2 text-white transition-colors hover:bg-[#041c44]/80"
                           >
                             <Icon className="h-5 w-5" />
                             <span className="sr-only">{label}</span>
@@ -236,16 +243,8 @@ export default function ContactPage() {
                         );
                       })}
                     </div>
-                  ) : (
-                    <a
-                      href="mailto:info@medconnectsoverseas.com"
-                      className="inline-flex items-center gap-2 text-[#041c44] hover:underline"
-                    >
-                      <Mail className="h-5 w-5" />
-                      info@medconnectsoverseas.com
-                    </a>
-                  )}
-                </div>
+                  </div>
+                )}
               </motion.div>
 
               <motion.div
@@ -378,73 +377,57 @@ export default function ContactPage() {
               <div className="h-1 w-20 bg-[#041c44] mx-auto"></div>
             </div>
 
-            <div className="max-w-4xl mx-auto">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                viewport={{ once: true }}
-                className="bg-white rounded-xl shadow-lg overflow-hidden"
-              >
-                <div className="grid md:grid-cols-2">
-                  <div className="relative h-full min-h-[300px]">
+            {/* Driven by the same records as the home page. It previously
+                hardcoded one founder, so Bhavy was simply missing here. */}
+            <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-2">
+              {founders.map((f, i) => (
+                <motion.div
+                  key={f._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: i * 0.1 }}
+                  viewport={{ once: true }}
+                  className="flex flex-col overflow-hidden rounded-xl bg-white shadow-lg"
+                >
+                  <div className="h-64 overflow-hidden bg-gray-100">
                     <img
-                      src="/images/founder.png"
-                      alt="Astha Sengar - Founder of MedConnectsOverseas"
-                      //   fill
-                      className="object-cover"
+                      src={f.imageUrl || "/images/founder.png"}
+                      alt={`${f.heading} — ${f.subheading ?? "Co-founder"}`}
+                      className="h-full w-full object-cover object-top"
                     />
                   </div>
-                  <div className="p-8">
-                    <h3 className="text-2xl font-bold text-[#041c44] mb-2">
-                      Astha Sengar
-                    </h3>
-                    <p className="text-blue-600 font-medium mb-4">
-                      Founder & Director
-                    </p>
-                    <p className="text-gray-600 mb-6">
-                      Astha Sengar founded MedConnectsOverseas with a vision to
-                      create a supportive community for medical students
-                      worldwide. With her background in medicine and passion for
-                      education, she has built a platform that prioritizes
-                      academic excellence, well-being, and meaningful
-                      connections.
-                    </p>
-                    <p className="text-gray-600 mb-6">
-                      Under her leadership, MedConnectsOverseas has grown into a
-                      thriving community that offers various activities,
-                      resources, and support systems for medical students at all
-                      stages of their journey.
-                    </p>
-                    {/* Her profiles appear here as soon as they are filled in
-                        — src/constants/social.ts */}
-                    <div className="flex items-center space-x-4">
-                      {activeLinks(FOUNDER_SOCIALS["Astha Singh Sengar"] ?? {}).map(([key, url]) => {
-                        const { Icon, label } = SOCIAL_ICONS[key];
-                        return (
-                          <a
-                            key={key}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="text-[#041c44] hover:text-[#041c44]/80 transition-colors"
-                          >
-                            <Icon className="h-5 w-5" />
-                            <span className="sr-only">{label}</span>
-                          </a>
-                        );
-                      })}
-                      <a
-                        href="mailto:ashta.sengar@medconnectsoverseas.com"
-                        className="inline-flex items-center gap-2 text-[#041c44] hover:text-[#041c44]/80 transition-colors"
-                      >
-                        <Mail className="h-5 w-5" />
-                        <span className="sr-only">Email Astha</span>
-                      </a>
+                  <div className="flex flex-1 flex-col p-6">
+                    <h3 className="text-xl font-bold text-[#041c44]">{f.heading}</h3>
+                    {f.subheading && (
+                      <p className="mt-1 font-medium text-blue-600">{f.subheading}</p>
+                    )}
+                    {f.body && <p className="mt-3 flex-1 text-gray-600">{f.body}</p>}
+                    <div className="mt-5 flex items-center space-x-4">
+                      {f.linkedinUrl && (
+                        <a href={f.linkedinUrl} target="_blank" rel="noreferrer noopener"
+                           className="text-[#041c44] transition-colors hover:text-[#041c44]/80">
+                          <Linkedin className="h-5 w-5" />
+                          <span className="sr-only">{f.heading} on LinkedIn</span>
+                        </a>
+                      )}
+                      {f.twitterUrl && (
+                        <a href={f.twitterUrl} target="_blank" rel="noreferrer noopener"
+                           className="text-[#041c44] transition-colors hover:text-[#041c44]/80">
+                          <Twitter className="h-5 w-5" />
+                          <span className="sr-only">{f.heading} on Twitter</span>
+                        </a>
+                      )}
+                      {f.email && (
+                        <a href={`mailto:${f.email}`}
+                           className="text-[#041c44] transition-colors hover:text-[#041c44]/80">
+                          <Mail className="h-5 w-5" />
+                          <span className="sr-only">Email {f.heading}</span>
+                        </a>
+                      )}
                     </div>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>

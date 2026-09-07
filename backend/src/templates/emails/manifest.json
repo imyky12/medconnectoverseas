@@ -74,6 +74,23 @@
     ]
   },
   {
+    "key": "admin-login-otp",
+    "file": "admin-login-otp.html",
+    "subject": "{{otp}} is your MedConnect Overseas admin code",
+    "preheader": "Someone entered your admin password. This code expires in {{expiry_minutes}} minutes.",
+    "audience": "admin",
+    "category": "transactional",
+    "sensitive": true,
+    "trigger": "admin/auth.controller.ts → adminLogin (second factor)",
+    "variables": [
+      "admin_name",
+      "otp",
+      "expiry_minutes",
+      "ip_address",
+      "requested_at"
+    ]
+  },
+  {
     "key": "admin-password-reset",
     "file": "admin-password-reset.html",
     "subject": "Reset your MedConnect Overseas admin password",

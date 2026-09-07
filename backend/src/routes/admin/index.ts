@@ -55,6 +55,29 @@ router.put('/newsletters/:id', updateNewsletter);
 router.delete('/newsletters/:id', deleteNewsletter);
 router.post('/newsletters/:id/notify', notifySubscribers);
 
+// ─── Site content (testimonials, impact numbers, FAQ, founders, activities) ──
+import {
+  listSiteContent, createSiteContent, updateSiteContent, deleteSiteContent, upsertSiteSetting,
+} from '../../controllers/siteContent.controller';
+router.get('/site-content', listSiteContent);
+router.post('/site-content', createSiteContent);
+router.put('/site-content/:id', updateSiteContent);
+router.delete('/site-content/:id', deleteSiteContent);
+router.put('/site-settings/:key', upsertSiteSetting);
+
+// ─── Administrators ────────────────────────────────────
+// Every admin can add another; there are no tiers. The controller keeps the
+// last active account from being switched off.
+import {
+  listAdmins, createAdmin, setAdminActive, resetAdminPassword,
+} from '../../controllers/admin/admins.controller';
+import { adminChangePassword } from '../../controllers/admin/auth.controller';
+router.get('/admins', listAdmins);
+router.post('/admins', createAdmin);
+router.patch('/admins/:id/active', setAdminActive);
+router.post('/admins/:id/reset-password', resetAdminPassword);
+router.post('/auth/change-password', adminChangePassword);
+
 // ─── Activity log ──────────────────────────────────────
 import { listActivity, listActivityActions } from '../../controllers/admin/activity.controller';
 router.get('/activity', listActivity);

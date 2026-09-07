@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSiteContent } from "@/hooks/useSiteContent";
 
 interface Testimonial {
-  id: number;
+  id: string;
   name: string;
   role: string;
   initials: string;
+  /** A photograph when the admin added one; initials are the fallback. */
+  imageUrl?: string;
   content: string;
   gradient: string;
 }
@@ -14,71 +17,31 @@ interface Testimonial {
 export default function TestimonialScroll() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const testimonials: Testimonial[] = [
-    {
-      id: 1,
-      name: "Aisha S.",
-      role: "3rd Year Medical Student",
-      initials: "AS",
-      content:
-        "The study sessions organized by MCO have significantly improved my academic performance. The community is supportive and the resources are invaluable.",
-      gradient: "from-blue-500 to-blue-700",
-    },
-    {
-      id: 2,
-      name: "Michael K.",
-      role: "2nd Year Medical Student",
-      initials: "MK",
-      content:
-        "The trekking adventures were not just fun but also helped me build meaningful connections with fellow students. MCO truly cares about our well-being.",
-      gradient: "from-cyan-500 to-blue-600",
-    },
-    {
-      id: 3,
-      name: "Leila P.",
-      role: "4th Year Medical Student",
-      initials: "LP",
-      content:
-        "The Med Talks provided me with insights from experienced professionals that I couldn't get elsewhere. MCO has been instrumental in my medical education journey.",
-      gradient: "from-blue-600 to-cyan-600",
-    },
-    {
-      id: 4,
-      name: "David R.",
-      role: "1st Year Medical Student",
-      initials: "DR",
-      content:
-        "As a first-year student, I was overwhelmed until I joined MCO. Their guidance and community support made my transition into medical school much smoother.",
-      gradient: "from-blue-700 to-blue-900",
-    },
-    {
-      id: 5,
-      name: "Sarah T.",
-      role: "Final Year Medical Student",
-      initials: "ST",
-      content:
-        "The webinars and resources provided by MCO have been crucial for my exam preparations. I'm grateful for this community during my final year.",
-      gradient: "from-cyan-600 to-blue-700",
-    },
-    {
-      id: 6,
-      name: "James L.",
-      role: "2nd Year Medical Student",
-      initials: "JL",
-      content:
-        "The exploring Georgia activity was the highlight of my semester. I made lifelong friends and learned so much about the local healthcare system.",
-      gradient: "from-blue-600 to-blue-800",
-    },
-    {
-      id: 7,
-      name: "Emma W.",
-      role: "3rd Year Medical Student",
-      initials: "EW",
-      content:
-        "MCO's treasure hunt combined fun with medical knowledge in a way I've never experienced before. It was both educational and incredibly entertaining.",
-      gradient: "from-blue-500 to-cyan-600",
-    },
+  const { content } = useSiteContent();
+
+  /**
+   * Gradients are decoration, not data — an admin should never have to pick one.
+   * Cycled by position so the wall stays varied however many there are.
+   */
+  const GRADIENTS = [
+    'from-blue-500 to-cyan-500',
+    'from-purple-500 to-pink-500',
+    'from-emerald-500 to-teal-500',
+    'from-amber-500 to-orange-500',
+    'from-rose-500 to-red-500',
   ];
+
+  const testimonials: Testimonial[] = content.testimonial.map((t, i) => ({
+    id: t._id,
+    name: t.heading,
+    role: t.subheading ?? '',
+    // Only used when there is no photograph.
+    initials: t.heading.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(),
+    imageUrl: t.imageUrl,
+    content: t.body ?? '',
+    gradient: GRADIENTS[i % GRADIENTS.length],
+  }));
+
 
   const allTestimonials = [...testimonials, ...testimonials];
 
@@ -115,6 +78,10 @@ export default function TestimonialScroll() {
     return () => clearInterval(interval);
   }, []);
 
+  // After the hooks, never before: an early return above them would make the
+  // hook order depend on whether the fetch had come back yet.
+  if (testimonials.length === 0) return null;
+
   return (
     <div className="w-full overflow-hidden">
       <div
@@ -128,11 +95,22 @@ export default function TestimonialScroll() {
             className="flex-shrink-0 w-[280px] sm:w-[340px] md:w-[380px] bg-white border-2 border-blue-200 p-6 sm:p-8 rounded-3xl hover:border-blue-300 transition-all duration-300 group"
           >
             <div className="flex items-center mb-4 sm:mb-6">
-              <div
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${testimonial.gradient} flex items-center justify-center text-white font-bold text-lg sm:text-xl mr-3 sm:mr-4 group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}
-              >
-                {testimonial.initials}
-              </div>
+              {/* A photograph when there is one; initials otherwise, so a
+                  testimonial without a picture still looks deliberate. */}
+              {testimonial.imageUrl ? (
+                <img
+                  src={testimonial.imageUrl}
+                  alt={testimonial.name}
+                  loading="lazy"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover mr-3 sm:mr-4 group-hover:scale-110 transition-transform duration-300 flex-shrink-0"
+                />
+              ) : (
+                <div
+                  className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${testimonial.gradient} flex items-center justify-center text-white font-bold text-lg sm:text-xl mr-3 sm:mr-4 group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}
+                >
+                  {testimonial.initials}
+                </div>
+              )}
               <div className="min-w-0">
                 <h4
                   className={`font-bold text-base sm:text-lg bg-gradient-to-r ${testimonial.gradient} bg-clip-text text-transparent truncate`}

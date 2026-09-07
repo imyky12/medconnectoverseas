@@ -58,6 +58,32 @@ const DESCRIPTIONS: { test: RegExp; method?: string; action: string; describe: (
     describe: (m) => `Loaded version ${m[2]} of the ${m[1]} document back into the draft` },
   { test: /^\/admin\/auth\/login$/, action: 'admin.login_failed',
     describe: (_m, req) => `Failed admin sign-in attempt for ${String(req.body?.email ?? 'an unknown address')}` },
+  // Only failures reach these: each controller records its own success with the
+  // account named (see the suppression list below).
+  { test: /^\/admin\/auth\/verify-otp$/, action: 'admin.login_code_failed',
+    describe: () => 'Entered a wrong or expired admin sign-in code' },
+  { test: /^\/admin\/auth\/resend-otp$/, action: 'admin.login_code_resend',
+    describe: () => 'Asked for a new admin sign-in code' },
+  { test: /^\/admin\/auth\/set-password$/, action: 'admin.set_password_failed',
+    describe: () => 'Failed to set a password on first sign-in' },
+  { test: /^\/admin\/auth\/change-password$/, action: 'admin.change_password',
+    describe: () => 'Changed their own admin password' },
+  { test: /^\/admin\/admins$/, method: 'POST', action: 'admin.create',
+    describe: (_m, req) => `Added an administrator — ${req.body?.fullName ?? 'unnamed'} (${req.body?.email ?? 'no address'})` },
+  { test: /^\/admin\/admins\/([^/]+)\/active$/, action: 'admin.set_active',
+    describe: (_m, req) => req.body?.isActive
+      ? 'Restored an administrator’s access'
+      : 'Switched off an administrator’s access' },
+  { test: /^\/admin\/admins\/([^/]+)\/reset-password$/, action: 'admin.reset_password',
+    describe: () => 'Gave an administrator a new temporary password' },
+  { test: /^\/admin\/site-settings\/([^/]+)$/, action: 'site_content.setting',
+    describe: (m) => `Edited the "${m[1]}" text on the site` },
+  { test: /^\/admin\/site-content\/([^/]+)$/, method: 'DELETE', action: 'site_content.delete',
+    describe: () => 'Removed an item from the site content' },
+  { test: /^\/admin\/site-content\/([^/]+)$/, method: 'PUT', action: 'site_content.update',
+    describe: (_m, req) => `Edited site content${req.body?.heading ? ` — ${req.body.heading}` : ''}` },
+  { test: /^\/admin\/site-content$/, method: 'POST', action: 'site_content.create',
+    describe: (_m, req) => `Added ${req.body?.section ?? 'an item'} — ${req.body?.heading ?? 'untitled'}` },
   { test: /^\/admin\/newsletters\/([^/]+)\/notify$/, action: 'newsletter.notify',
     describe: () => 'Emailed subscribers about a newsletter issue' },
   { test: /^\/admin\/newsletters\/([^/]+)$/, method: 'DELETE', action: 'newsletter.delete',
@@ -111,6 +137,13 @@ export const recordRequestActivity = (req: Request, res: Response, next: NextFun
     // rows against one sign-in, one of them anonymous. Failed attempts still
     // come through here, and those are the ones worth watching.
     if (path === '/admin/auth/login' && res.statusCode < 400) return;
+    // The two-factor steps record themselves the same way: `login` when the
+    // password is accepted and a code goes out, `login` again when the code is
+    // entered and credentials are actually issued. Only the failures are worth
+    // logging generically, and those still land here.
+    if (path === '/admin/auth/verify-otp' && res.statusCode < 400) return;
+    if (path === '/admin/auth/resend-otp' && res.statusCode < 400) return;
+    if (path === '/admin/auth/set-password' && res.statusCode < 400) return;
     // Same for a student sign-in: the controller records it with a name.
     if (path === '/auth/verify-otp' && res.statusCode < 400) return;
     // And for newsletter access — the controller records the successful case

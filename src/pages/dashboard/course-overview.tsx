@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import {
-  Loader2, Clock, Users, Star, BookOpen, CheckCircle,
+  Loader2, Clock, Users, BookOpen, CheckCircle,
   ChevronRight, Tag, Globe, BarChart, AlertCircle, X, QrCode, Upload
 } from 'lucide-react';
 import ImageUpload from '../../components/ui/image-upload';
@@ -184,7 +184,6 @@ export default function CourseOverview() {
 
             {/* Meta row */}
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted">
-              <div className="flex items-center gap-1.5"><Star className="h-4 w-4 fill-amber-400 text-amber-400" /><span className="font-semibold text-body">4.8</span></div>
               <div className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-faint" />{course.estimatedDurationHours}h total</div>
               <div className="flex items-center gap-1.5"><Users className="h-4 w-4 text-faint" />{course.totalEnrollments || 0} students</div>
               <div className="flex items-center gap-1.5"><Globe className="h-4 w-4 text-faint" />{course.language || 'English'}</div>

@@ -20,8 +20,11 @@ import CoFounders from "@/components/landing/co-founders";
 import ActivitySlideshow from "@/components/landing/activity-slideshow";
 import StatisticsSection from "@/components/landing/statistics-section";
 import { useNavigate } from "react-router-dom";
+import { useSiteContent, setting, settingLines } from "@/hooks/useSiteContent";
 
 function Home() {
+  const { content } = useSiteContent();
+
   const navigate = useNavigate();
 
   return (
@@ -219,28 +222,15 @@ function Home() {
                   </h3>
                 </div>
                 <p className="text-base sm:text-lg text-gray-700 mb-4 sm:mb-6 font-medium">
-                  Transparency, guidance, and opportunities for medical students
-                  worldwide.
+                  {setting(content, 'mission.summary', 'Transparency, guidance, and opportunities for medical students worldwide.')}
                 </p>
                 <ul className="space-y-2 sm:space-y-3">
-                  <li className="flex items-start text-gray-700">
-                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 mt-0.5 text-blue-600 flex-shrink-0" />
-                    <span className="text-sm sm:text-base">
-                      Provide clear, honest guidance to medical students
-                    </span>
-                  </li>
-                  <li className="flex items-start text-gray-700">
-                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 mt-0.5 text-blue-600 flex-shrink-0" />
-                    <span className="text-sm sm:text-base">
-                      Create opportunities for academic and professional growth
-                    </span>
-                  </li>
-                  <li className="flex items-start text-gray-700">
-                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 mt-0.5 text-blue-600 flex-shrink-0" />
-                    <span className="text-sm sm:text-base">
-                      Foster a global community of medical learners
-                    </span>
-                  </li>
+                  {settingLines(content, 'mission.points', ['Provide clear, honest guidance to medical students', 'Connect students with opportunities across borders', 'Build a community that supports academic and personal growth']).map((point) => (
+                    <li key={point} className="flex items-start text-gray-700">
+                      <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 mt-0.5 text-blue-600 flex-shrink-0" />
+                      <span className="text-sm sm:text-base">{point}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
 
@@ -254,28 +244,15 @@ function Home() {
                   </h3>
                 </div>
                 <p className="text-base sm:text-lg text-gray-700 mb-4 sm:mb-6 font-medium">
-                  A world where medical students thrive academically, mentally,
-                  and socially.
+                  {setting(content, 'vision.summary', 'A world where medical students thrive academically, mentally, and socially.')}
                 </p>
                 <ul className="space-y-2 sm:space-y-3">
-                  <li className="flex items-start text-gray-700">
-                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 mt-0.5 text-cyan-600 flex-shrink-0" />
-                    <span className="text-sm sm:text-base">
-                      Academic excellence through collaborative learning
-                    </span>
-                  </li>
-                  <li className="flex items-start text-gray-700">
-                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 mt-0.5 text-cyan-600 flex-shrink-0" />
-                    <span className="text-sm sm:text-base">
-                      Mental and physical well-being as a priority
-                    </span>
-                  </li>
-                  <li className="flex items-start text-gray-700">
-                    <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 mt-0.5 text-cyan-600 flex-shrink-0" />
-                    <span className="text-sm sm:text-base">
-                      Meaningful connections among students worldwide
-                    </span>
-                  </li>
+                  {settingLines(content, 'vision.points', ['Academic excellence through collaborative learning', 'Mental well-being supported by a community that understands', 'Careers built on real information rather than guesswork']).map((point) => (
+                    <li key={point} className="flex items-start text-gray-700">
+                      <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 mt-0.5 text-cyan-600 flex-shrink-0" />
+                      <span className="text-sm sm:text-base">{point}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </motion.div>

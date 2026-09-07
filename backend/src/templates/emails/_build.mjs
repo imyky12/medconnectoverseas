@@ -347,6 +347,27 @@ const templates = [
     ],
   },
   {
+    key: 'admin-login-otp',
+    audience: 'admin',
+    sensitive: true, // carries a live OTP — body is never persisted to EmailLog
+    trigger: 'admin/auth.controller.ts \u2192 adminLogin (second factor)',
+    subject: '{{otp}} is your MedConnect Overseas admin code',
+    preheader: 'Someone entered your admin password. This code expires in {{expiry_minutes}} minutes.',
+    heading: 'Finish signing in',
+    vars: ['admin_name', 'otp', 'expiry_minutes', 'ip_address', 'requested_at'],
+    body: [
+      p('Hi {{admin_name}}, your admin password was accepted. Enter the code below to finish signing in.'),
+      codeBlock('{{otp}}', 'Valid for {{expiry_minutes}} minutes'),
+      details([
+        ['Requested at', '{{requested_at}}'],
+        ['Origin IP', '{{ip_address}}', { mono: true }],
+      ]),
+      callout("<strong>Didn't just sign in?</strong> Someone else knows this account's password. Ignore this code, then change your password and tell the team.", 'warn'),
+      signoff(),
+    ],
+    footerNote: 'We will never ask you for this code. Nobody from the team will ever call about it.',
+  },
+  {
     key: 'admin-password-reset',
     audience: 'admin',
     sensitive: true, // carries a working reset link — body is never persisted to EmailLog

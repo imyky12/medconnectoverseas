@@ -1,17 +1,16 @@
-import { Facebook, Twitter, Instagram, Linkedin, Mail } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../services/api";
-import { ORG_SOCIALS, activeLinks } from "../../constants/social";
-
-const SOCIAL_ICONS = {
-  facebook: { Icon: Facebook, label: "Facebook" },
-  twitter: { Icon: Twitter, label: "Twitter" },
-  instagram: { Icon: Instagram, label: "Instagram" },
-  linkedin: { Icon: Linkedin, label: "LinkedIn" },
-} as const;
+import { SOCIAL_ICONS } from "../../constants/social";
+import { useSiteContent, contactDetails, socialLinks } from "../../hooks/useSiteContent";
 
 export default function Footer() {
+  // The same addresses the contact page shows — one place to edit, so the two
+  // pages can never disagree about how to reach us.
+  const { content } = useSiteContent();
+  const contact = contactDetails(content);
+  const socials = socialLinks(content);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState("");
@@ -42,10 +41,10 @@ export default function Footer() {
               A student led, student oriented community connecting medical
               students worldwide.
             </p>
-            {/* Only profiles that actually exist — see src/constants/social.ts */}
-            {activeLinks(ORG_SOCIALS).length > 0 && (
+            {/* Only the profiles an admin has filled in. */}
+            {socials.length > 0 && (
               <div className="flex space-x-4">
-                {activeLinks(ORG_SOCIALS).map(([key, url]) => {
+                {socials.map(([key, url]) => {
                   const { Icon, label } = SOCIAL_ICONS[key];
                   return (
                     <a
@@ -105,15 +104,34 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-semibold mb-4">Contact Us</h3>
             <ul className="space-y-2">
-              <li className="flex items-center">
-                <Mail className="h-5 w-5 mr-2 text-blue-300" />
-                <a
-                  href="mailto:info@medconnectsoverseas.com"
-                  className="text-blue-200 hover:text-white transition-colors"
-                >
-                  info@medconnectsoverseas.com
-                </a>
-              </li>
+              {contact.email && (
+                <li className="flex items-center">
+                  <Mail className="mr-2 h-5 w-5 shrink-0 text-blue-300" />
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="text-blue-200 transition-colors hover:text-white"
+                  >
+                    {contact.email}
+                  </a>
+                </li>
+              )}
+              {contact.phone && (
+                <li className="flex items-center">
+                  <Phone className="mr-2 h-5 w-5 shrink-0 text-blue-300" />
+                  <a
+                    href={`tel:${contact.phone.replace(/[^+\d]/g, "")}`}
+                    className="text-blue-200 transition-colors hover:text-white"
+                  >
+                    {contact.phone}
+                  </a>
+                </li>
+              )}
+              {contact.location && (
+                <li className="flex items-center">
+                  <MapPin className="mr-2 h-5 w-5 shrink-0 text-blue-300" />
+                  <span className="text-blue-200">{contact.location}</span>
+                </li>
+              )}
             </ul>
             <div className="mt-4">
               <h4 className="text-sm font-medium mb-2">

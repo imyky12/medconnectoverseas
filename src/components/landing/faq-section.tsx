@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { useSiteContent, type ContentItem } from "@/hooks/useSiteContent";
 
 interface FAQItem {
   question: string;
@@ -12,38 +13,12 @@ interface FAQItem {
 export default function FAQSection() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const faqs: FAQItem[] = [
-    {
-      question: "What is MedConnectsOverseas?",
-      answer:
-        "MedConnectsOverseas (MCO) is a student-led, student-oriented community that connects medical students worldwide. We provide resources, organize activities, and foster a supportive environment for academic and personal growth.",
-    },
-    {
-      question: "How can I join MedConnectsOverseas?",
-      answer:
-        "You can join our community by clicking the 'Join Us' button on our website and filling out the registration form. Membership is free for all medical students.",
-    },
-    {
-      question: "What activities does MCO organize?",
-      answer:
-        "We organize a variety of activities including exploring local areas, treasure hunts, trekking adventures, Med Talks, webinars, and collaborative study sessions. These activities are designed to promote academic excellence, well-being, and community building.",
-    },
-    {
-      question: "Is MCO only for students studying in Georgia?",
-      answer:
-        "No, MCO is a global community open to medical students from all over the world. While we have a strong presence in Georgia, we welcome students from any country and any medical school.",
-    },
-    {
-      question: "How often is the Med Nexus newsletter published?",
-      answer:
-        "The Med Nexus newsletter is published monthly. It features the latest medical education news, upcoming events, community highlights, and educational resources.",
-    },
-    {
-      question: "Can I contribute to MCO as a volunteer?",
-      answer:
-        "We welcome volunteers who want to contribute to our community. You can help organize events, write for our newsletter, or assist with various projects. Contact us for more information on volunteer opportunities.",
-    },
-  ];
+  const { content } = useSiteContent();
+
+  const faqs: FAQItem[] = content.faq.map((row: ContentItem) => ({
+    question: row.heading,
+    answer: row.body ?? '',
+  }));
 
   const toggleFAQ = (index: number) => {
     setActiveIndex(activeIndex === index ? null : index);
