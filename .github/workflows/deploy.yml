@@ -108,6 +108,30 @@ jobs:
 
       - run: npm ci
 
+      # Vite bakes env vars in at build time, and every call site falls back to
+      # `http://localhost:5000/api/v1` when the variable is absent. That fallback
+      # is right for a developer and useless in production: the build succeeds,
+      # Netlify publishes happily, and the live site quietly calls the visitor's
+      # own machine. Nothing downstream can detect it, so it has to be caught here.
+      - name: Require VITE_API_URL
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          if [ -z "$VITE_API_URL" ]; then
+            echo "::error::VITE_API_URL is empty. Add it under Settings → Secrets and variables → Actions → Repository secrets (the 'Actions' tab, not Dependabot or Codespaces)."
+            exit 1
+          fi
+          case "$VITE_API_URL" in
+            *localhost*|*127.0.0.1*)
+              echo "::error::VITE_API_URL points at localhost: $VITE_API_URL"
+              exit 1 ;;
+            */api/v1) ;;
+            *)
+              echo "::error::VITE_API_URL should end in /api/v1 — got: $VITE_API_URL"
+              exit 1 ;;
+          esac
+          echo "Building against $VITE_API_URL"
+
       - name: Build
         env:
           # Vite bakes env vars into the bundle at build time, so this has to be
@@ -119,6 +143,17 @@ jobs:
           # VITE_ variable.
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: npm run build
+
+      # Belt and braces: the guard above proves the variable was set, this proves
+      # it actually reached the bundle. Catches an env-name change in Vite config
+      # or a stray committed .env overriding it.
+      - name: Check no localhost leaked into the bundle
+        run: |
+          if grep -rq "localhost:5000" dist/assets/*.js; then
+            echo "::error::The built bundle still points at localhost. Something overrode VITE_API_URL."
+            exit 1
+          fi
+          echo "Bundle is clean."
 
       - name: Deploy to Netlify
         env:
