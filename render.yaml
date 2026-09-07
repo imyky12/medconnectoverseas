@@ -1,0 +1,87 @@
+# Render Blueprint for the API.
+#
+# Create the service once with New → Blueprint and point it at this repo;
+# Render reads this file instead of you filling in a form. After that, deploys
+# are triggered by GitHub Actions (see .github/workflows/deploy.yml), which is
+# why autoDeploy is off — otherwise every push would deploy twice.
+
+services:
+  - type: web
+    name: medconnect-api
+    runtime: node
+    plan: free
+    # Closest free region to most of our students. Also available: oregon,
+    # frankfurt, ohio, virginia. Changing it later means recreating the service.
+    region: singapore
+    rootDir: backend
+    # `--include=dev` is not optional. TypeScript, the type packages and
+    # tsconfig-paths all live in devDependencies, and npm skips those when
+    # NODE_ENV=production — which it is, two lines below. Without the flag the
+    # build fails on a missing `tsc`.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    # Render waits for this to answer before sending traffic to a new deploy,
+    # so a broken release never replaces a working one.
+    healthCheckPath: /health
+    autoDeploy: false
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render assigns the port and injects it. `env.PORT` already reads it.
+      - key: PORT
+        value: 10000
+
+      # Everything below is set once in the Render dashboard and never lives in
+      # the repo. `sync: false` is what tells Render to prompt for it rather
+      # than expect a value here.
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRY
+        sync: false
+      - key: JWT_REFRESH_EXPIRY
+        sync: false
+
+      # The public site's address. CORS_ORIGIN accepts a comma-separated list,
+      # so a custom domain and the netlify.app fallback can both be allowed.
+      - key: CORS_ORIGIN
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      - key: MAIL_ENABLED
+        sync: false
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        sync: false
+      - key: MAIL_REPLY_TO
+        sync: false
+      - key: MAIL_ADMIN_RECIPIENTS
+        sync: false
+      - key: MAIL_MAX_ATTEMPTS
+        sync: false
+      - key: ZEPTOMAIL_API_URL
+        sync: false
+      - key: ZEPTOMAIL_TOKEN
+        sync: false
+
+      - key: OTP_EXPIRY_MINUTES
+        sync: false
+      - key: ADMIN_SESSION_TIMEOUT_MINUTES
+        sync: false
+      - key: REFERRAL_REWARD_AMOUNT
+        sync: false
+      - key: REFERRAL_REWARD_VALIDITY_DAYS
+        sync: false
