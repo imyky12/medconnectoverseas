@@ -46,6 +46,9 @@ const enquirySchema = new Schema<IEnquiry>(
 );
 
 enquirySchema.index({ status: 1, createdAt: -1 });
-enquirySchema.index({ email: 1 });
+// Compound rather than `{ email: 1 }` alone, because the per-day abuse cap in
+// public.controller counts one address's enquiries inside a time window on
+// every public submission — the one query here that must never scan.
+enquirySchema.index({ email: 1, createdAt: -1 });
 
 export const Enquiry = mongoose.model<IEnquiry>('Enquiry', enquirySchema);

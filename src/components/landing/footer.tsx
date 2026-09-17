@@ -2,6 +2,7 @@ import { Mail, Phone, MapPin } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../services/api";
+import { Honeypot } from "../honeypot";
 import { SOCIAL_ICONS } from "../../constants/social";
 import { useSiteContent, contactDetails, socialLinks } from "../../hooks/useSiteContent";
 
@@ -13,6 +14,7 @@ export default function Footer() {
   const socials = socialLinks(content);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const [website, setWebsite] = useState("");
   const [done, setDone] = useState("");
   const [error, setError] = useState("");
 
@@ -21,7 +23,7 @@ export default function Footer() {
     setBusy(true);
     setError("");
     try {
-      const res: any = await api.post("/newsletter/subscribe", { email, source: "footer" });
+      const res: any = await api.post("/newsletter/subscribe", { email, source: "footer", website });
       if (res?.success) setDone(res.message || "You are on the list.");
       else setError(res?.message || "Could not sign you up.");
     } catch (err: any) {
@@ -144,6 +146,7 @@ export default function Footer() {
                 <p className="text-sm font-medium text-blue-200">{done}</p>
               ) : (
                 <form onSubmit={subscribe} className="flex">
+                  <Honeypot value={website} onChange={setWebsite} />
                   <input
                     type="email"
                     required

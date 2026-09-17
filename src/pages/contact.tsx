@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/landing/navbar";
 import Footer from "@/components/landing/footer";
 import { api } from "../services/api";
+import { Honeypot } from "@/components/honeypot";
 import { useSiteContent, contactDetails, socialLinks } from "../hooks/useSiteContent";
 
 export default function ContactPage() {
@@ -27,6 +28,9 @@ export default function ContactPage() {
     email: "",
     subject: "",
     message: "",
+    // The honeypot. Part of formState so it posts with everything else and
+    // handleChange picks it up without a special case.
+    website: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -58,7 +62,7 @@ export default function ContactPage() {
       if (res?.success) {
         setTicketId(res.data?.ticketId ?? "");
         setIsSubmitted(true);
-        setFormState({ name: "", email: "", subject: "", message: "" });
+        setFormState({ name: "", email: "", subject: "", message: "", website: "" });
       } else {
         setSubmitError(res?.message || "We could not send your message. Please try again.");
       }
@@ -283,6 +287,10 @@ export default function ContactPage() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    <Honeypot
+                      value={formState.website}
+                      onChange={(website) => setFormState({ ...formState, website })}
+                    />
                     {submitError && (
                       <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                         {submitError}

@@ -10,6 +10,20 @@ import { recordRequestActivity } from "./middleware/activity";
 
 const app = express();
 
+// ─── Proxy ─────────────────────────────────────────────
+//
+// Render terminates TLS and forwards to us, so without this every request
+// appears to come from the load balancer's address: `req.ip` is identical for
+// the whole internet. That silently defeats every rate limiter — all visitors
+// share one bucket — and made the `ipAddress` recorded against an enquiry
+// useless for telling one sender from another.
+//
+// The count is 1, not `true`. `true` takes the left-most X-Forwarded-For entry,
+// which the client writes and can therefore forge, handing an abusive caller a
+// fresh identity per request and an unlimited rate limit. 1 takes the hop
+// Render itself appended, which the client cannot control.
+app.set("trust proxy", 1);
+
 // ─── Security Middleware ───────────────────────────────
 app.use(helmet());
 app.use(cors(corsOptions));

@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "../../services/api";
+import { Honeypot } from "../honeypot";
 
 export default function NewsletterSignup() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [website, setWebsite] = useState("");
 
   const [error, setError] = useState("");
 
@@ -28,6 +30,7 @@ export default function NewsletterSignup() {
       const res: any = await api.post("/newsletter/subscribe", {
         email,
         source: "newsletter-page",
+        website,
       });
       if (res?.success) {
         setIsSubmitted(true);
@@ -62,6 +65,7 @@ export default function NewsletterSignup() {
         </motion.div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          <Honeypot value={website} onChange={setWebsite} />
           {error && (
             <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               {error}

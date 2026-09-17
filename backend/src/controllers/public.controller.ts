@@ -7,6 +7,7 @@ import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { notifyEnquiryReceived, notifyNewsletterwelcome } from '../services/email/notifications';
+import { looksLikeSpam, honeypotTripped } from '../utils/spamGuard';
 
 /**
  * The two public forms.
@@ -35,7 +36,37 @@ function makeTicketId(): string {
   return `MCO-${id}`;
 }
 
+/**
+ * What a discarded submission is told.
+ *
+ * Indistinguishable from the real thing, ticket id included, so an abusive
+ * client gets no signal that it was filtered and no hint about which rule to
+ * work around. The ticket is never stored, so quoting it back reaches nobody.
+ */
+const pretendAccepted = (res: Response) =>
+  res.status(201).json(
+    new ApiResponse(
+      201,
+      { ticketId: makeTicketId() },
+      'Thanks — your message is with our team. We usually reply within 2 working days.'
+    )
+  );
+
+/**
+ * How many enquiries one address may send in a day.
+ *
+ * Per-IP limiting alone was not enough: the abusive traffic arrived slowly, and
+ * behind a proxy every visitor can share one bucket, so a generous window let
+ * it through indefinitely. The address is the thing being abused here — it was
+ * a real stranger's, receiving one acknowledgement from us every few minutes —
+ * so that is what the cap is keyed on. Two leaves room for someone who sends a
+ * message, spots a mistake and sends it again.
+ */
+const MAX_ENQUIRIES_PER_EMAIL_PER_DAY = 2;
+
 export const submitEnquiry = asyncHandler(async (req: Request, res: Response) => {
+  if (honeypotTripped(req.body)) return void pretendAccepted(res);
+
   const name = clean(req.body?.name, 120);
   const email = clean(req.body?.email, 200).toLowerCase();
   const mobile = clean(req.body?.mobile, 40);
@@ -48,6 +79,14 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
   if (!EMAIL_PATTERN.test(email)) {
     throw new ApiError(400, 'That does not look like a valid email address.');
   }
+
+  if (looksLikeSpam({ name, subject, message })) return void pretendAccepted(res);
+
+  const recent = await Enquiry.countDocuments({
+    email,
+    createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+  });
+  if (recent >= MAX_ENQUIRIES_PER_EMAIL_PER_DAY) return void pretendAccepted(res);
 
   // A ticket id is generated rather than derived, so collisions are possible in
   // principle. Retried a few times rather than trusted, since the field is
@@ -92,6 +131,16 @@ export const submitEnquiry = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const subscribeToNewsletter = asyncHandler(async (req: Request, res: Response) => {
+  // Same honeypot as the enquiry form. The same bot signed a stranger's address
+  // up to the newsletter in the same minute it sent the fake enquiry, so this
+  // form needs the check just as much.
+  if (honeypotTripped(req.body)) {
+    res.status(201).json(
+      new ApiResponse(201, { alreadySubscribed: false }, 'You are on the list — look out for the next issue.')
+    );
+    return;
+  }
+
   const email = clean(req.body?.email, 200).toLowerCase();
   const source = ['footer', 'newsletter-page'].includes(req.body?.source)
     ? req.body.source
