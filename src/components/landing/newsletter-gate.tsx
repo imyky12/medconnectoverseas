@@ -161,21 +161,26 @@ export default function NewsletterGate({ open, onClose, newsletter }: Newsletter
                   autoFocus
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') void sendCode(); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && turnstile.ready) void sendCode(); }}
                   placeholder="you@example.com"
                   className="h-12 w-full rounded-lg border border-rule bg-surface pl-9 pr-3 text-[15px] text-ink outline-none transition-colors placeholder:text-faint focus:border-signal"
                 />
               </div>
-              {turnstile.widget}
               {error && <ErrorLine>{error}</ErrorLine>}
-              <button
-                type="button"
-                onClick={() => void sendCode()}
-                disabled={busy || !email.trim()}
-                className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-ink text-[15px] font-semibold text-white transition-colors hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send me the code'}
-              </button>
+              {/* Sits where the button goes, and hands the space over once it
+                  passes — a button that is visible but not yet backed by a
+                  token just produces a rejection nobody can explain. */}
+              <div className="mt-4">{turnstile.widget}</div>
+              {turnstile.ready && (
+                <button
+                  type="button"
+                  onClick={() => void sendCode()}
+                  disabled={busy || !email.trim()}
+                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-ink text-[15px] font-semibold text-white transition-colors hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send me the code'}
+                </button>
+              )}
               <p className="mt-3 text-center text-[12px] text-faint">
                 We will also add you to the newsletter. Unsubscribe any time.
               </p>

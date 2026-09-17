@@ -16,7 +16,8 @@ export default function Footer() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [website, setWebsite] = useState("");
-  const turnstile = useTurnstile();
+  // Compact: the footer column is far narrower than the standard widget.
+  const turnstile = useTurnstile({ size: "compact" });
   const [done, setDone] = useState("");
   const [error, setError] = useState("");
 
@@ -150,24 +151,26 @@ export default function Footer() {
               {done ? (
                 <p className="text-sm font-medium text-blue-200">{done}</p>
               ) : (
-                <form onSubmit={subscribe} className="flex">
+                <form onSubmit={subscribe} className="space-y-2">
                   <Honeypot value={website} onChange={setWebsite} />
-                  {turnstile.widget}
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Your email"
-                    className="px-3 py-2 bg-white/10 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-300 text-white w-full"
+                    className="px-3 py-2 bg-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300 text-white w-full"
                   />
-                  <button
-                    type="submit"
-                    disabled={busy}
-                    className="bg-blue-300 text-[#041c44] px-4 py-2 rounded-r-md font-medium hover:bg-blue-200 transition-colors disabled:opacity-60"
-                  >
-                    {busy ? "…" : "Subscribe"}
-                  </button>
+                  {turnstile.widget}
+                  {turnstile.ready && (
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="w-full bg-blue-300 text-[#041c44] px-4 py-2 rounded-md font-medium hover:bg-blue-200 transition-colors disabled:opacity-60"
+                    >
+                      {busy ? "…" : "Subscribe"}
+                    </button>
+                  )}
                 </form>
               )}
               {error && <p className="mt-2 text-sm text-red-300">{error}</p>}

@@ -70,7 +70,6 @@ export default function NewsletterSignup() {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <Honeypot value={website} onChange={setWebsite} />
-          {turnstile.widget}
           {error && (
             <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               {error}
@@ -86,26 +85,30 @@ export default function NewsletterSignup() {
               className="bg-white border-2 border-blue-200 focus:border-blue-400 text-gray-800 placeholder:text-gray-500 h-12 rounded-xl px-4 transition-all duration-300"
             />
           </div>
-          <Button
-            type="submit"
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white hover:from-blue-700 hover:to-blue-900 h-12 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="mr-2"
-                >
-                  ⟳
-                </motion.div>
-                Subscribing...
-              </span>
-            ) : (
-              "Subscribe to Med Nexus"
-            )}
-          </Button>
+          {/* The check takes the button's place until it passes. */}
+          {turnstile.widget}
+          {turnstile.ready && (
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white hover:from-blue-700 hover:to-blue-900 h-12 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="mr-2"
+                  >
+                    ⟳
+                  </motion.div>
+                  Subscribing...
+                </span>
+              ) : (
+                "Subscribe to Med Nexus"
+              )}
+            </Button>
+          )}
         </form>
       )}
     </div>

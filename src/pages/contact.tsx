@@ -299,7 +299,6 @@ export default function ContactPage() {
                       value={formState.website}
                       onChange={(website) => setFormState({ ...formState, website })}
                     />
-                    {turnstile.widget}
                     {submitError && (
                       <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                         {submitError}
@@ -370,13 +369,20 @@ export default function ContactPage() {
                         className="w-full min-h-[120px]"
                       />
                     </div>
-                    <Button
-                      type="submit"
-                      className="w-full bg-[#041c44] hover:bg-[#041c44]/90"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "Sending..." : "Send Message"}
-                    </Button>
+                    {/* The check sits where the button will be, and the
+                        button replaces it once it passes. Showing both at once
+                        invites a click before the token exists, which the
+                        server then rejects for a reason the person cannot see. */}
+                    {turnstile.widget}
+                    {turnstile.ready && (
+                      <Button
+                        type="submit"
+                        className="w-full bg-[#041c44] hover:bg-[#041c44]/90"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? "Sending..." : "Send Message"}
+                      </Button>
+                    )}
                   </form>
                 )}
               </motion.div>
