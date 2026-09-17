@@ -9,12 +9,14 @@ import { CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "../../services/api";
 import { Honeypot } from "../honeypot";
+import { useTurnstile } from "../../hooks/useTurnstile";
 
 export default function NewsletterSignup() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [website, setWebsite] = useState("");
+  const turnstile = useTurnstile();
 
   const [error, setError] = useState("");
 
@@ -31,6 +33,7 @@ export default function NewsletterSignup() {
         email,
         source: "newsletter-page",
         website,
+        turnstileToken: turnstile.token,
       });
       if (res?.success) {
         setIsSubmitted(true);
@@ -41,6 +44,7 @@ export default function NewsletterSignup() {
     } catch (err: any) {
       setError(err?.message || "We could not sign you up. Please try again.");
     } finally {
+      turnstile.reset();
       setIsLoading(false);
     }
   };
@@ -66,6 +70,7 @@ export default function NewsletterSignup() {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <Honeypot value={website} onChange={setWebsite} />
+          {turnstile.widget}
           {error && (
             <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               {error}

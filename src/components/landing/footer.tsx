@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../services/api";
 import { Honeypot } from "../honeypot";
+import { useTurnstile } from "../../hooks/useTurnstile";
 import { SOCIAL_ICONS } from "../../constants/social";
 import { useSiteContent, contactDetails, socialLinks } from "../../hooks/useSiteContent";
 
@@ -15,6 +16,7 @@ export default function Footer() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [website, setWebsite] = useState("");
+  const turnstile = useTurnstile();
   const [done, setDone] = useState("");
   const [error, setError] = useState("");
 
@@ -23,12 +25,15 @@ export default function Footer() {
     setBusy(true);
     setError("");
     try {
-      const res: any = await api.post("/newsletter/subscribe", { email, source: "footer", website });
+      const res: any = await api.post("/newsletter/subscribe", {
+        email, source: "footer", website, turnstileToken: turnstile.token,
+      });
       if (res?.success) setDone(res.message || "You are on the list.");
       else setError(res?.message || "Could not sign you up.");
     } catch (err: any) {
       setError(err?.message || "Could not sign you up.");
     } finally {
+      turnstile.reset();
       setBusy(false);
     }
   };
@@ -147,6 +152,7 @@ export default function Footer() {
               ) : (
                 <form onSubmit={subscribe} className="flex">
                   <Honeypot value={website} onChange={setWebsite} />
+                  {turnstile.widget}
                   <input
                     type="email"
                     required

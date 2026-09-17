@@ -35,6 +35,11 @@ interface EnvConfig {
   CLOUDINARY_CLOUD_NAME: string;
   CLOUDINARY_API_KEY: string;
   CLOUDINARY_API_SECRET: string;
+  // ── Cloudflare Turnstile (public form protection) ──
+  // Empty means the check is skipped entirely — see middleware/turnstile.
+  // Defaulted rather than required so the app boots without it, as it must in
+  // development and in the gap between deploying and setting the variable.
+  TURNSTILE_SECRET_KEY: string;
 }
 
 const getBool = (key: string, fallback: string): boolean =>
@@ -87,6 +92,7 @@ export const env: EnvConfig = {
   CLOUDINARY_CLOUD_NAME: getEnv('CLOUDINARY_CLOUD_NAME', ''),
   CLOUDINARY_API_KEY: getEnv('CLOUDINARY_API_KEY', ''),
   CLOUDINARY_API_SECRET: getEnv('CLOUDINARY_API_SECRET', ''),
+  TURNSTILE_SECRET_KEY: getEnv('TURNSTILE_SECRET_KEY', ''),
 };
 
 // Fail fast rather than silently dropping mail in production.

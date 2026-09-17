@@ -25,7 +25,8 @@ router.get('/payment-settings', getPaymentSettings);
 // into the team's inbox.
 import { submitEnquiry, subscribeToNewsletter } from '../controllers/public.controller';
 import { apiLimiter, publicFormLimiter } from '../middleware/rateLimiter';
-router.post('/contact', publicFormLimiter, submitEnquiry);
+import { verifyTurnstile } from '../middleware/turnstile';
+router.post('/contact', publicFormLimiter, verifyTurnstile, submitEnquiry);
 
 // ─── Newsletter (public) ───────────────────────────────
 // List and detail carry metadata only — never the PDF address. Getting the file
@@ -36,7 +37,7 @@ import {
 } from '../controllers/newsletter.controller';
 router.get('/newsletters', listPublishedNewsletters);
 router.get('/newsletters/:id', getPublishedNewsletter);
-router.post('/newsletters/:id/request-access', publicFormLimiter, requestNewsletterAccess);
+router.post('/newsletters/:id/request-access', publicFormLimiter, verifyTurnstile, requestNewsletterAccess);
 router.post('/newsletters/:id/verify-access', apiLimiter, verifyNewsletterAccess);
 router.get('/newsletters/:id/download', downloadNewsletter);
 
@@ -48,7 +49,7 @@ router.get('/site-content', getSiteContent);
 // Public read of the live legal documents. Drafts are never reachable here.
 import { getPublishedPolicy } from '../controllers/public.controller';
 router.get('/policies/:slug', getPublishedPolicy);
-router.post('/newsletter/subscribe', publicFormLimiter, subscribeToNewsletter);
+router.post('/newsletter/subscribe', publicFormLimiter, verifyTurnstile, subscribeToNewsletter);
 
 // ─── Uploads ───────────────────────────────────────────
 // Two entry points on purpose. `audience` comes from the route, not the

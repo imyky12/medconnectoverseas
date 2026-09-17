@@ -142,6 +142,11 @@ jobs:
           # public API address, not a credential. Nothing secret belongs in a
           # VITE_ variable.
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          # The public half of the Turnstile key pair. Public by design — the
+          # widget needs it in the browser, and the secret half never leaves
+          # Render. If it is missing the forms still work, unprotected, which
+          # is why the guard above does not cover it.
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
         run: npm run build
 
       # Belt and braces: the guard above proves the variable was set, this proves

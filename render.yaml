@@ -77,6 +77,11 @@ services:
       - key: ZEPTOMAIL_TOKEN
         sync: false
 
+      # Cloudflare Turnstile. Leaving this unset disables the check rather
+      # than blocking every form, so the API can deploy before it is added.
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+
       - key: OTP_EXPIRY_MINUTES
         sync: false
       - key: ADMIN_SESSION_TIMEOUT_MINUTES

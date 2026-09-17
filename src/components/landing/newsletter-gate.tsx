@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, X, Mail, ArrowLeft, Download, CheckCircle2, AlertCircle } from 'lucide-react';
 import OtpInput from '../ui/otp-input';
 import { api } from '../../services/api';
+import { useTurnstile } from '../../hooks/useTurnstile';
 
 /**
  * The step between wanting an issue and getting it.
@@ -30,6 +31,7 @@ export default function NewsletterGate({ open, onClose, newsletter }: Newsletter
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
+  const turnstile = useTurnstile();
   const [error, setError] = useState('');
   const [ticket, setTicket] = useState('');
   const [resentAt, setResentAt] = useState<number | null>(null);
@@ -59,7 +61,10 @@ export default function NewsletterGate({ open, onClose, newsletter }: Newsletter
     setBusy(true);
     setError('');
     try {
-      const res: any = await api.post(`/newsletters/${newsletter._id}/request-access`, { email: email.trim() });
+      const res: any = await api.post(`/newsletters/${newsletter._id}/request-access`, {
+        email: email.trim(),
+        turnstileToken: turnstile.token,
+      });
       if (res?.success) {
         setStep('code');
         if (resend) setResentAt(Date.now());
@@ -67,6 +72,8 @@ export default function NewsletterGate({ open, onClose, newsletter }: Newsletter
     } catch (e: any) {
       setError(e?.message ?? 'We could not send the code.');
     } finally {
+      // Single-use token — "Resend the code" needs a fresh one.
+      turnstile.reset();
       setBusy(false);
     }
   };
@@ -159,6 +166,7 @@ export default function NewsletterGate({ open, onClose, newsletter }: Newsletter
                   className="h-12 w-full rounded-lg border border-rule bg-surface pl-9 pr-3 text-[15px] text-ink outline-none transition-colors placeholder:text-faint focus:border-signal"
                 />
               </div>
+              {turnstile.widget}
               {error && <ErrorLine>{error}</ErrorLine>}
               <button
                 type="button"

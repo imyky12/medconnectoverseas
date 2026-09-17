@@ -13,6 +13,7 @@ import Navbar from "@/components/landing/navbar";
 import Footer from "@/components/landing/footer";
 import { api } from "../services/api";
 import { Honeypot } from "@/components/honeypot";
+import { useTurnstile } from "../hooks/useTurnstile";
 import { useSiteContent, contactDetails, socialLinks } from "../hooks/useSiteContent";
 
 export default function ContactPage() {
@@ -32,6 +33,7 @@ export default function ContactPage() {
     // handleChange picks it up without a special case.
     website: "",
   });
+  const turnstile = useTurnstile();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -58,7 +60,10 @@ export default function ContactPage() {
     setIsSubmitting(true);
     setSubmitError("");
     try {
-      const res: any = await api.post("/contact", formState);
+      const res: any = await api.post("/contact", {
+        ...formState,
+        turnstileToken: turnstile.token,
+      });
       if (res?.success) {
         setTicketId(res.data?.ticketId ?? "");
         setIsSubmitted(true);
@@ -69,6 +74,9 @@ export default function ContactPage() {
     } catch (err: any) {
       setSubmitError(err?.message || "We could not send your message. Please try again.");
     } finally {
+      // Unconditional: the token is single-use, so whether the send succeeded
+      // or failed, the next attempt needs a fresh one.
+      turnstile.reset();
       setIsSubmitting(false);
     }
   };
@@ -291,6 +299,7 @@ export default function ContactPage() {
                       value={formState.website}
                       onChange={(website) => setFormState({ ...formState, website })}
                     />
+                    {turnstile.widget}
                     {submitError && (
                       <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                         {submitError}
